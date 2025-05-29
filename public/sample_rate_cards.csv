@@ -1,0 +1,29 @@
+Supplier,Country,Region,ServiceGroup,ServiceCategory,Role,Level,Rate,Currency,EffectiveDate,ExpirationDate,Location,SkillLevel,WorkType,ContractType,TaxonomyL1,TaxonomyL2,Client
+Acme Consulting,USA,North America,IT Services,Development,Software Developer,Junior,75,USD,2025-01-01,2025-12-31,New York,Junior,Remote,T&M,IT,Software,Tech Corp
+Acme Consulting,USA,North America,IT Services,Development,Software Developer,Mid,95,USD,2025-01-01,2025-12-31,New York,Mid,Remote,T&M,IT,Software,Tech Corp
+Acme Consulting,USA,North America,IT Services,Development,Software Developer,Senior,125,USD,2025-01-01,2025-12-31,New York,Senior,Remote,T&M,IT,Software,Tech Corp
+Acme Consulting,USA,North America,IT Services,Development,Software Developer,Lead,150,USD,2025-01-01,2025-12-31,New York,Lead,Remote,T&M,IT,Software,Tech Corp
+Acme Consulting,USA,North America,IT Services,Management,Project Manager,Mid,120,USD,2025-01-01,2025-12-31,New York,Mid,Hybrid,T&M,Professional Services,Consulting,Finance Inc
+Acme Consulting,USA,North America,IT Services,Management,Project Manager,Senior,150,USD,2025-01-01,2025-12-31,New York,Senior,Hybrid,T&M,Professional Services,Consulting,Finance Inc
+Acme Consulting,USA,North America,IT Services,Analysis,Business Analyst,Mid,90,USD,2025-01-01,2025-12-31,New York,Mid,Hybrid,T&M,Professional Services,Consulting,Finance Inc
+Acme Consulting,USA,North America,IT Services,Analysis,Business Analyst,Senior,115,USD,2025-01-01,2025-12-31,New York,Senior,Hybrid,T&M,Professional Services,Consulting,Finance Inc
+TechPro Services,UK,Europe,IT Services,Development,Software Developer,Junior,65,GBP,2025-01-01,2025-12-31,London,Junior,Onsite,T&M,IT,Software,Global Bank
+TechPro Services,UK,Europe,IT Services,Development,Software Developer,Mid,85,GBP,2025-01-01,2025-12-31,London,Mid,Onsite,T&M,IT,Software,Global Bank
+TechPro Services,UK,Europe,IT Services,Development,Software Developer,Senior,110,GBP,2025-01-01,2025-12-31,London,Senior,Onsite,T&M,IT,Software,Global Bank
+TechPro Services,UK,Europe,IT Services,Development,Software Developer,Lead,135,GBP,2025-01-01,2025-12-31,London,Lead,Onsite,T&M,IT,Software,Global Bank
+TechPro Services,UK,Europe,IT Services,DevOps,DevOps Engineer,Mid,95,GBP,2025-01-01,2025-12-31,London,Mid,Remote,T&M,IT,Infrastructure Services,Global Bank
+TechPro Services,UK,Europe,IT Services,DevOps,DevOps Engineer,Senior,120,GBP,2025-01-01,2025-12-31,London,Senior,Remote,T&M,IT,Infrastructure Services,Global Bank
+Global IT Solutions,India,APAC,IT Services,Development,Software Developer,Junior,2500,INR,2025-01-01,2025-12-31,Bangalore,Junior,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,Development,Software Developer,Mid,3500,INR,2025-01-01,2025-12-31,Bangalore,Mid,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,Development,Software Developer,Senior,5000,INR,2025-01-01,2025-12-31,Bangalore,Senior,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,Development,Software Developer,Lead,6500,INR,2025-01-01,2025-12-31,Bangalore,Lead,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,QA,QA Engineer,Junior,2000,INR,2025-01-01,2025-12-31,Bangalore,Junior,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,QA,QA Engineer,Mid,3000,INR,2025-01-01,2025-12-31,Bangalore,Mid,Remote,Fixed Price,IT,Software,Retail Group
+Global IT Solutions,India,APAC,IT Services,QA,QA Engineer,Senior,4500,INR,2025-01-01,2025-12-31,Bangalore,Senior,Remote,Fixed Price,IT,Software,Retail Group
+Digital Experts Inc.,Germany,Europe,Marketing,Design,UX Designer,Junior,70,EUR,2025-01-01,2025-12-31,Berlin,Junior,Hybrid,Retainer,Marketing,Brand Creative & Content,Media Group
+Digital Experts Inc.,Germany,Europe,Marketing,Design,UX Designer,Mid,90,EUR,2025-01-01,2025-12-31,Berlin,Mid,Hybrid,Retainer,Marketing,Brand Creative & Content,Media Group
+Digital Experts Inc.,Germany,Europe,Marketing,Design,UX Designer,Senior,120,EUR,2025-01-01,2025-12-31,Berlin,Senior,Hybrid,Retainer,Marketing,Brand Creative & Content,Media Group
+Digital Experts Inc.,Germany,Europe,Marketing,Design,UX Designer,Lead,150,EUR,2025-01-01,2025-12-31,Berlin,Lead,Hybrid,Retainer,Marketing,Brand Creative & Content,Media Group
+Digital Experts Inc.,Germany,Europe,Marketing,Analytics,Data Scientist,Mid,110,EUR,2025-01-01,2025-12-31,Berlin,Mid,Remote,T&M,IT,Software,Research Co
+Digital Experts Inc.,Germany,Europe,Marketing,Analytics,Data Scientist,Senior,140,EUR,2025-01-01,2025-12-31,Berlin,Senior,Remote,T&M,IT,Software,Research Co
+Digital Experts Inc.,Germany,Europe,Marketing,Analytics,Data Scientist,Lead,170,EUR,2025-01-01,2025-12-31,Berlin,Lead,Remote,T&M,IT,Software,Research Co

@@ -1,0 +1,10 @@
+Supplier,Country,Region,ServiceGroup,Role,Level,Rate,Currency,EffectiveDate,ExpirationDate,CategoryL1,CategoryL2,ContractType,SkillLevel,Source,IsNegotiated,Client,Location,WorkType,Notes
+Acme Consulting,USA,North America,IT Services,Software Developer,Senior,125,USD,2025-01-01,2025-12-31,IT,Software,T&M,Senior,RFP,TRUE,ACME Corp,New York,Remote,Negotiated rate for enterprise agreement
+TechPro Services,UK,Europe,IT Services,DevOps Engineer,Mid,95,GBP,2025-01-01,2025-12-31,IT,Infrastructure Services,T&M,Mid,Direct,FALSE,Global Inc,London,Hybrid,Standard rate card
+Global IT Solutions,India,APAC,IT Services,QA Engineer,Junior,2000,INR,2025-01-01,2025-12-31,IT,Software,Fixed Price,Junior,MSA,FALSE,Tech Corp,Bangalore,Remote,Offshore team rate
+Digital Experts Inc.,Germany,Europe,Marketing,UX Designer,Senior,120,EUR,2025-01-01,2025-12-31,Marketing,Brand Creative & Content,Retainer,Senior,Procurement,TRUE,Media Group,Berlin,Hybrid,Preferred supplier rate
+Tech Consultants Ltd,USA,North America,Professional Services,Business Analyst,Senior,140,USD,2025-01-01,2025-12-31,Professional Services,Consulting,T&M,Senior,RFP,TRUE,Finance Inc,Chicago,Onsite,Strategic supplier
+Data Systems Corp,Canada,North America,IT Services,Data Scientist,Lead,160,CAD,2025-01-01,2025-12-31,IT,Software,T&M,Lead,Direct,FALSE,Research Co,Toronto,Remote,Specialized skill
+Cloud Solutions Inc,Australia,APAC,IT Services,Cloud Architect,Senior,180,AUD,2025-01-01,2025-12-31,IT,Infrastructure Services,Fixed Price,Senior,MSA,TRUE,Global Bank,Sydney,Remote,Enterprise agreement
+Security Experts LLC,USA,North America,IT Services,Security Engineer,Mid,130,USD,2025-01-01,2025-12-31,IT,Infrastructure Services,T&M,Mid,Direct,FALSE,Insurance Co,Boston,Hybrid,Standard rate
+Global Staffing Inc,Singapore,APAC,HR Services,Recruiter,Junior,80,SGD,2025-01-01,2025-12-31,HR Services,HR,Retainer,Junior,Procurement,FALSE,Retail Group,Singapore,Remote,Volume-based pricing
