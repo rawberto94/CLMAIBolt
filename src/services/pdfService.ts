@@ -1,4 +1,13 @@
 import * as pdfjsLib from 'pdfjs-dist';
+
+// Set the worker source to the path of the worker file in your public/assets directory
+// This line should be executed once, typically when your module is loaded.
+if (typeof window !== 'undefined' && window.document) { // Ensure this runs only in the browser
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.js';
+}
+
+// ... rest of your imports (AzureKeyCredential, GoogleGenerativeAI, etc.)
+// ... rest of your pdfService.ts codeimport * as pdfjsLib from 'pdfjs-dist';
 // Import the ES Module worker for pdfjs-dist v4.x+
 // The exact path might slightly change based on minor versions, ensure it's correct for your installed pdfjs-dist.
 // For pdfjs-dist 4.10.38, 'pdf.worker.mjs' is the ESM worker.
