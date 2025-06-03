@@ -1,220 +1,226 @@
 import { analyzeContractWithGemini } from './geminiService';
 import { Document } from "@langchain/core/documents";
-// We'll likely need a text splitter, e.g., from LangChain
-// import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { initializeVectorStore, queryVectorStore, addDocumentsToVectorStore as addDocsToVectorStore } from './ragService';
+// ragService functions now expect Document[] and handle chunking internally
+import { initializeVectorStore, queryVectorStore, addDocumentsToVectorStore } from './ragService';
+import { extractTextFromPDF } from './pdfService'; // Assuming direct import is fine
 
-// In-memory tracking of initialization state
-let isInitialized = false;
-// Placeholder for a text splitter instance
-// let textSplitter: RecursiveCharacterTextSplitter | null = null;
+// Module-level flag for initialization state, consistent with ragService
+let isKnowledgeBaseInitialized = false;
 
 /**
- * Initialize the text splitter.
- * This could be configured with specific chunk size and overlap.
+ * Initializes the contract knowledge base with sample contracts.
+ * Documents are created here with metadata and passed to ragService for chunking and storage.
  */
-// function getSplitter() {
-//   if (!textSplitter) {
-//     textSplitter = new RecursiveCharacterTextSplitter({
-//       chunkSize: 1500, // Example: Adjust as needed
-//       chunkOverlap: 200, // Example: Adjust as needed
-//     });
-//   }
-//   return textSplitter;
-// }
-
-/**
- * Initialize the contract knowledge base with sample contracts.
- * These samples should also be chunked and stored as Documents.
- */
-export async function initializeContractKnowledgeBase(sampleContractsAndMetadata: Array<{id: string, text: string, metadata: any}>): Promise<void> {
+export async function initializeContractKnowledgeBase(
+  sampleContractsData: Array<{ id: string; text: string; metadata: any }>
+): Promise<void> {
   try {
-    if (!isInitialized) {
-      // const splitter = getSplitter();
-      const allDocs: Document[] = [];
-      for (const item of sampleContractsAndMetadata) {
-        // const chunks = await splitter.splitText(item.text);
-        // chunks.forEach(chunk => {
-        //   allDocs.push(new Document({
-        //     pageContent: chunk,
-        //     metadata: { ...item.metadata, contractId: item.id, isSample: true }
-        //   }));
-        // });
-        // --- SIMPLIFIED FOR NOW until ragService details are known ---
-        // Assuming initializeVectorStore can handle raw texts or needs to be adapted
-        // For now, we'll stick to the original structure but acknowledge it needs chunking.
-        allDocs.push(new Document({ pageContent: item.text, metadata: { ...item.metadata, contractId: item.id, isSample: true } }));
-      }
-      // This assumes initializeVectorStore can take Document[] or will be adapted.
-      // If it still takes string[], we'd need to adjust.
-      await initializeVectorStore(allDocs); // MODIFIED: Pass Document objects
+    // In this revised model, initializeVectorStore in ragService handles the isInitialized check for the store itself.
+    // contractRagService's isKnowledgeBaseInitialized refers to loading its initial dataset.
+    if (isKnowledgeBaseInitialized) {
+        console.log("Contract knowledge base samples already processed for initialization.");
+        // If initializeVectorStore itself is idempotent or handles multiple calls, this is fine.
+        // Otherwise, we might only call initializeVectorStore once globally.
+        // For now, let's assume ragService.initializeVectorStore can be called to ensure store is ready
+        // and potentially add these documents if the store was empty or reset.
     }
-    isInitialized = true;
-    console.log("Contract knowledge base initialized with sample contracts");
+
+    const documentsToStore: Document[] = sampleContractsData.map(item => new Document({
+      pageContent: item.text, // Full text, ragService will chunk
+      metadata: {
+        ...item.metadata, // User-provided metadata for the sample
+        contractId: item.id,
+        source: 'sample_document', // Mark as a sample
+        processingTimestamp: new Date().toISOString(),
+      }
+    }));
+
+    if (documentsToStore.length > 0) {
+      // ragService.initializeVectorStore will chunk and add these documents
+      await initializeVectorStore(documentsToStore);
+      console.log(`Contract knowledge base initialized with ${documentsToStore.length} sample documents.`);
+      isKnowledgeBaseInitialized = true; // Mark that these samples have been processed at least once
+    } else {
+      // Ensure vector store is initialized even if no samples are provided this time
+      await initializeVectorStore([]);
+      console.log("Contract knowledge base: No sample documents provided, vector store initialized if not already.");
+      isKnowledgeBaseInitialized = true; // Still mark as "attempted to initialize"
+    }
+
   } catch (error) {
     console.error("Error initializing contract knowledge base:", error);
-    throw error;
+    isKnowledgeBaseInitialized = false; // Reset on error
+    throw error; // Re-throw to allow calling function to handle
   }
 }
 
 /**
- * Initialize the RAG system with sample contracts
+ * Main initialization function for the RAG system from the contract perspective.
+ * Loads sample contracts into the vector store.
  */
 export async function initializeContractRAG(): Promise<void> {
   try {
-    if (isInitialized) {
-      console.log("RAG system already initialized");
+    // The isKnowledgeBaseInitialized flag in this service ensures we only load samples once per "session"
+    // or until an error resets it. The underlying vector store init is handled by ragService.
+    if (isKnowledgeBaseInitialized) {
+      console.log("Contract RAG system's initial knowledge base already processed.");
+      // Ensure the underlying vector store is ready (idempotent call)
+      await initializeVectorStore([]);
       return;
     }
 
-    // Sample contracts for initialization - now with ID and basic metadata
     const sampleContractsData = [
       {
         id: "MSA_Sample_001",
-        text: "This is a sample Master Service Agreement between Company A and Company B for professional services. The agreement covers scope of work, payment terms, intellectual property rights, and confidentiality provisions.",
+        text: "This is a sample Master Service Agreement...", // Full text
         metadata: { type: "Master Service Agreement", parties: ["Company A", "Company B"] }
       },
       {
         id: "NDA_Sample_001",
-        text: "This Non-Disclosure Agreement (NDA) is entered into by and between Company X and Company Y to protect confidential information shared during business discussions. The agreement defines confidential information, permitted use, and the duration of confidentiality obligations.",
+        text: "This Non-Disclosure Agreement (NDA) is entered into by...", // Full text
         metadata: { type: "Non-Disclosure Agreement", parties: ["Company X", "Company Y"] }
       },
       {
         id: "SLA_Sample_001",
-        text: "Software License Agreement: This agreement grants the licensee the right to use the software under specified terms and conditions. It includes license scope, restrictions, warranty disclaimers, and limitation of liability clauses.",
+        text: "Software License Agreement: This agreement grants...", // Full text
         metadata: { type: "Software License Agreement" }
       }
     ];
 
-    await initializeContractKnowledgeBase(sampleContractsData); // MODIFIED
+    await initializeContractKnowledgeBase(sampleContractsData);
+    console.log("Contract RAG system initialized with sample knowledge base.");
+
   } catch (error) {
-    console.error("Error initializing RAG system:", error);
+    console.error("Error initializing Contract RAG system:", error);
     throw error;
   }
 }
 
 /**
- * Add a contract file to the RAG system.
- * This function will now chunk the contract and add each chunk as a Document.
+ * Adds a contract file to the RAG system.
+ * The file content is extracted, a Document object is created, and then passed to ragService.
  */
-export async function addContractFileToRAG(contractId: string, file: File, metadata: any): Promise<void> {
+export async function addContractFileToRAG(contractId: string, file: File, userMetadata: any = {}): Promise<void> {
   try {
-    if (!isInitialized) {
-      await initializeContractRAG();
-    }
+    // Ensure the vector store is ready via ragService's initializer
+    // This call is idempotent and ensures vectorStore instance exists in ragService
+    await initializeVectorStore([]);
 
     let text: string;
     if (file.type === 'application/pdf') {
-      const { extractTextFromPDF } = await import('./pdfService');
-      text = await extractTextFromPDF(file);
-    } else {
+      text = await extractTextFromPDF(file); // Assuming pdfService is robust
+    } else if (file.type.startsWith('text/')) {
       text = await file.text();
+    } else {
+      console.warn(`Unsupported file type: ${file.type}. Skipping file: ${file.name}`);
+      throw new Error(`Unsupported file type: ${file.type}`);
     }
 
-    // const splitter = getSplitter();
-    // const chunks = await splitter.splitText(text);
-    // const documents = chunks.map((chunk, index) => new Document({
-    //   pageContent: chunk,
-    //   metadata: {
-    //     ...metadata, // Original metadata passed to the function
-    //     contractId: contractId,
-    //     fileName: file.name,
-    //     fileType: file.type,
-    //     chunkNumber: index + 1,
-    //     totalChunks: chunks.length,
-    //   }
-    // }));
-
-    // --- SIMPLIFIED FOR NOW until ragService details are known ---
-    // Assuming addDocsToVectorStore can take Document[] or will be adapted.
-    // For now, we pass a single Document, but ideally it should be chunked.
-    const document = new Document({
-        pageContent: text,
-        metadata: {
-            ...metadata,
-            contractId: contractId,
-            fileName: file.name,
-            fileType: file.type,
-        }
+    const documentToAdd = new Document({
+      pageContent: text, // Full text, ragService will chunk
+      metadata: {
+        ...userMetadata, // Metadata provided by the user during upload
+        contractId: contractId, // Unique ID for this contract
+        fileName: file.name,
+        fileType: file.type,
+        source: 'uploaded_document',
+        uploadTimestamp: new Date().toISOString(),
+      }
     });
-    await addDocsToVectorStore([document]); // MODIFIED: Pass Document object(s)
 
-    console.log(`Contract ${contractId} (file: ${file.name}) processed and added to RAG system.`);
+    // addDocumentsToVectorStore in ragService now expects Document[] and handles chunking
+    await addDocumentsToVectorStore([documentToAdd]);
+    console.log(`Contract '${contractId}' (file: ${file.name}) processed and added to RAG system.`);
 
   } catch (error) {
-    console.error(`Error adding contract file ${file.name} to RAG:`, error);
+    console.error(`Error adding contract file '${file.name}' (ID: ${contractId}) to RAG:`, error);
     throw error;
   }
 }
 
 /**
- * Analyze a contract using RAG-enhanced Gemini.
- * This function can be enhanced to use chunks from the contractText itself for more focused analysis.
+ * Analyzes a contract using RAG-enhanced Gemini.
+ * Can use context from the contract itself (if previously added) and/or similar contracts.
  */
 export async function analyzeContractWithRAG(
-  contractText: string,
-  contractIdForAnalysis: string, // ID of the contract being analyzed, if known/stored
-  userQuery: string = "Provide a comprehensive analysis" // More flexible query
+  contractTextToAnalyze: string, // The actual text of the contract to analyze
+  userQuery: string, // Specific question or analysis request from the user
+  options?: {
+    targetContractId?: string; // If the contractTextToAnalyze corresponds to a contractId in the store
+    retrieveSimilarContext?: boolean; // Whether to fetch context from other similar contracts
+    maxSimilarDocs?: number;
+  }
 ): Promise<string> {
   try {
-    if (!isInitialized) {
-      await initializeContractRAG();
+    // Ensure vector store is initialized
+    await initializeVectorStore([]);
+
+    let ragContext = "";
+    const {
+        targetContractId,
+        retrieveSimilarContext = true, // Default to true
+        maxSimilarDocs = 2
+    } = options || {};
+
+    // Strategy 1: Get context from the *target contract itself* if its ID is known
+    // This assumes the contract (or its chunks) is already in the vector store.
+    // For this to work effectively, queryVectorStore would need a way to filter by metadata (e.g., contractId)
+    // or the query itself needs to be specific enough to pull chunks from that contract.
+    // For now, if a targetContractId is provided, we can attempt a general query potentially prefixed
+    // or scoped if queryVectorStore supports metadata filters.
+    // This part is more advanced and depends on ragService.queryVectorStore capabilities.
+    // We can build a simpler version for now.
+
+    // Strategy 2: Get context from *similar documents/contracts* in the vector store
+    if (retrieveSimilarContext) {
+      // Use a snippet of the contract or the user query to find similar documents
+      const queryForSimilarity = contractTextToAnalyze.substring(0, 1000); // Or userQuery
+      const similarDocs = await queryVectorStore(queryForSimilarity, maxSimilarDocs);
+
+      if (similarDocs && similarDocs.length > 0) {
+        ragContext += "\n\n--- Context from potentially similar contracts or clauses in the knowledge base ---\n";
+        ragContext += similarDocs
+          .map(doc => `Source Document ID: ${doc.metadata?.contractId || 'N/A'}\nContent Snippet:\n${doc.pageContent}`)
+          .join("\n\n---\n\n");
+      } else {
+        ragContext += "\n\n--- No highly similar contracts or clauses found in the knowledge base for additional context. ---\n";
+      }
     }
-
-    let analysisContext = "";
-    let contractToAnalyze = contractText;
-
-    // --- Strategy 1: Use chunks from the contractText itself (if it's long) ---
-    // const splitter = getSplitter();
-    // const contractChunks = await splitter.splitText(contractText);
-    //
-    // // For simplicity, let's assume we use all chunks for now.
-    // // In a more advanced scenario, you might embed the userQuery and find relevant chunks from contractChunks.
-    // const internalContext = contractChunks.join("\n\n");
-    // analysisContext += `\n\n--- Sections from the contract being analyzed (${contractIdForAnalysis || 'current contract'}) ---\n${internalContext}`;
-    // contractToAnalyze = `The contract identified as ${contractIdForAnalysis || 'current contract'} (full text provided separately if needed, focus on the sections above).`;
-
-
-    // --- Strategy 2: Get relevant context from the broader vector store (similar contracts) ---
-    // The query to the vector store could be the userQuery, or the first few lines/summary of contractText
-    const queryForSimilar = contractText.substring(0, 500); // Example: use beginning of contract to find similar ones
-    const relevantDocsFromStore = await queryVectorStore(queryForSimilar, 3); // Find 3 similar documents/chunks
-
-    if (relevantDocsFromStore && relevantDocsFromStore.length > 0) {
-      const similarContractsContext = relevantDocsFromStore
-        .map(doc => `Document ID: ${doc.metadata?.contractId || 'N/A'}\nContent:\n${doc.pageContent}`)
-        .join("\n\n---\n\n");
-      analysisContext += `\n\n--- Context from potentially similar contracts in the knowledge base ---\n${similarContractsContext}`;
-    }
-
 
     const enhancedPrompt = `
-You are a contract analysis expert.
-User's request: "${userQuery}"
+You are a contract analysis expert. Please analyze the following contract based on the user's query.
+Use any provided contextual information from similar contracts or clauses to enhance your analysis if relevant.
 
-Contract to analyze:
-${contractText}
-${analysisContext}
+User's Query: "${userQuery}"
 
-Based on the user's request, the contract provided, and any relevant context from similar contracts or specific sections, please provide your analysis.
-If the request is for a "comprehensive analysis", please include:
-1. Key terms and clauses identified.
-2. Potential risks or issues.
-3. Recommendations for improvement or points to consider.
-4. If context from similar contracts is available, briefly note any significant similarities or differences in approach to common clauses.
+Contract to Analyze:
+\`\`\`
+${contractTextToAnalyze}
+\`\`\`
+${ragContext}
 
-Your analysis should be detailed, professional, and actionable. Structure your response clearly.
+Please provide a detailed, professional, and actionable response to the user's query.
+If the query is general (e.g., "analyze this contract"), then identify:
+1. Key terms and clauses.
+2. Potential risks or ambiguities.
+3. Obligations of the involved parties.
+4. Recommendations or points of attention.
+If context from similar documents was provided, you can use it for comparison or to highlight standard practices, but the primary focus should be the "Contract to Analyze".
 `;
 
     const result = await analyzeContractWithGemini(enhancedPrompt);
 
-    if (!result.success) {
-      throw new Error(result.error || "Failed to analyze contract with Gemini");
+    if (!result.success || typeof result.analysis !== 'string') {
+      throw new Error(result.error || "Failed to analyze contract with Gemini or received invalid response.");
     }
 
     return result.analysis;
   } catch (error) {
     console.error("Error analyzing contract with RAG:", error);
-    throw error;
+    // Consider if the error object itself is more informative or if a custom message is better
+    if (error instanceof Error) {
+        throw new Error(`RAG Analysis Failed: ${error.message}`);
+    }
+    throw new Error("An unknown error occurred during RAG analysis.");
   }
 }
