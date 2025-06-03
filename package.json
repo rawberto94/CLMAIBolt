@@ -1,39 +1,6 @@
+@@ -1,1 +1,1 @@
 {
-  "name": "contract-analyzer",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
   "dependencies": {
-    "@azure/ai-form-recognizer": "^4.0.0",
-    "@google/generative-ai": "^0.2.0",
-    "@langchain/core": "^0.1.17",
-    "chart.js": "^4.4.2",
-    "clsx": "^2.1.0",
-    "langchain": "^0.1.17", 
-    "lucide-react": "^0.284.0",
-    "pdfjs-dist": "^3.11.174",
-    "react": "^18.2.0",
-    "react-chartjs-2": "^5.2.0",
-    "react-dom": "^18.2.0",
-    "tailwind-merge": "^2.2.1",
-    "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
-    "@tailwindcss/forms": "^0.5.7",
-    "@types/node": "^20.11.0",
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.0.3",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.27",
-    "tailwindcss": "^3.3.3",
-    "typescript": "^5.0.2",
-    "vite": "^4.4.5",
-    "vite-plugin-static-copy": "^0.17.0"
++    "pdfjs-dist": "^4.0.379"
   }
 }
