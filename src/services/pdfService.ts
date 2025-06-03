@@ -8,13 +8,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.js';
 // Azure Form Recognizer configuration
 const formRecognizerEndpoint = import.meta.env.VITE_AZURE_FORM_RECOGNIZER_ENDPOINT || "";
 const formRecognizerKey = import.meta.env.VITE_AZURE_FORM_RECOGNIZER_KEY || "";
-const googleApiKey = import.meta.env.VITE_GOOGLE_API_KEY || "";
 
-// Initialize Azure Form Recognizer client
-const client = new DocumentAnalysisClient(
-  formRecognizerEndpoint,
-  new AzureKeyCredential(formRecognizerKey)
-);
+// Initialize Azure Form Recognizer client only if credentials are available
+const client = formRecognizerEndpoint && formRecognizerKey 
+  ? new DocumentAnalysisClient(
+      formRecognizerEndpoint,
+      new AzureKeyCredential(formRecognizerKey)
+    )
+  : null;
+
 
 // Convert file to base64
 function fileToBase64(file) {
@@ -54,6 +56,11 @@ async function extractTextWithPdfJs(arrayBuffer: ArrayBuffer): Promise<string> {
 // Extract text using Azure Form Recognizer
 async function extractTextWithAzure(base64Data: string): Promise<string> {
   try {
+    if (!client) {
+      throw new Error(
+        'Azure Form Recognizer credentials not configured. Please set VITE_AZURE_FORM_RECOGNIZER_ENDPOINT and VITE_AZURE_FORM_RECOGNIZER_KEY in .env'
+      );
+    }
     // Convert base64 to Uint8Array
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
