@@ -1,7 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { AzureKeyCredential, DocumentAnalysisClient } from "@azure/ai-form-recognizer";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
+const pdfWorkerUrl = '/assets/pdf.worker.min.js';
 
 // --- PDF.js Worker Configuration ---
 // This line should be executed once, typically when your module is loaded.
