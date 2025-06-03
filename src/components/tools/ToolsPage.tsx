@@ -4,6 +4,7 @@ import ContractAnalyzer from '../documents/ContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
 import RfpManagementSystem from './RfpManagementSystem';
 import RateCardsBenchmarker from './RateCardsBenchmarker';
+import ContractAnalysisDemo from './ContractAnalysisDemo';
 
 const ToolsPage: React.FC = () => {
   // Get the current sub-route from the URL hash
@@ -67,6 +68,20 @@ const ToolsPage: React.FC = () => {
         'Visualize pricing trends with charts',
         'Export comparison results'
       ]
+    },
+    {
+      id: 'contract-demo',
+      name: 'Contract Analysis Demo',
+      description: 'Interactive demonstration of contract analysis capabilities with sample data and visualizations.',
+      icon: FileText,
+      features: [
+        'Analyze sample contracts',
+        'Extract key financial terms',
+        'Identify delivery deadlines',
+        'Highlight legal obligations',
+        'Assess compliance requirements',
+        'Compare against industry benchmarks'
+      ]
     }
   ];
 
@@ -84,6 +99,8 @@ const ToolsPage: React.FC = () => {
         return <RfpManagementSystem />;
       case 'ratecards':
         return <RateCardsBenchmarker />;
+      case 'contract-demo':
+        return <ContractAnalysisDemo />;
       default:
         // Show a tool selection screen by default
         return (
