@@ -846,7 +846,26 @@ import {
 } from '../../services/contractRagService'; // Adjust path
 
 // ... (AnalysisResult interface and other states)
-
+// Inside ContractRagAnalyzer.tsx -> handleAnalyze
+const newUiAnalysis: AnalysisResult = {
+  id: newContractId,
+  fileName: file.name,
+  timestamp: new Date().toISOString(),
+  summary: structuredAnalysisResult.executiveSummary || "Summary not available.",
+  metadata: {
+    contractType: structuredAnalysisResult.documentType || 'N/A',
+    // ... other fields from structuredAnalysisResult mapped to AnalysisResult fields ...
+  },
+  // ... map all other relevant fields ...
+  keyFindings: structuredAnalysisResult.keyFindings || [], // Assuming keyFindings exists on TargetJsonStructure
+  risks: structuredAnalysisResult.identifiedRisks || [],  // Assuming identifiedRisks maps to risks
+  obligations: structuredAnalysisResult.keyObligations || [], // Assuming keyObligations maps to obligations
+  clauses: [], // You'll need to prompt for clauses and map them
+  score: { overall: 0, risk: 0, compliance: 0, clarity: 0 }, // This likely needs separate calculation or LLM call
+  insights: structuredAnalysisResult.recommendations || [], // Example mapping
+  recommendations: structuredAnalysisResult.recommendations || [],
+};
+setCurrentAnalysis(newUiAnalysis);
 const handleAnalyze = async (fileToAnalyze?: File) => {
   // ... (file checking, setIsAnalyzing, progress simulation - same as before)
   const file = fileToAnalyze || currentFile;
