@@ -106,7 +106,8 @@ const ContractAnalyzer: React.FC = () => {
   const handleAnalyze = async () => {
     try {
       if (!file) {
-        throw new Error("Please upload a contract file first");
+        setUploadError("Please upload a contract file first");
+        return;
       }
 
       const now = Date.now();
@@ -123,9 +124,15 @@ const ContractAnalyzer: React.FC = () => {
       
       // Read the file content
       let fileContent: string;
-      
       try {
-        fileContent = await extractTextFromPdf(file);
+        if (file.type === 'application/pdf') {
+          fileContent = await extractTextFromPDF(file);
+        } else if (file.type.startsWith('text/') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+          // For text files, just read the text directly
+          fileContent = await file.text();
+        } else {
+          throw new Error(`Unsupported file type: ${file.type}. Please upload a PDF, TXT, DOC, or DOCX file.`);
+        }
         
         if (!fileContent || fileContent.trim() === '') {
           throw new Error("No text content could be extracted from the file. The file might be empty or corrupted.");
@@ -138,9 +145,9 @@ const ContractAnalyzer: React.FC = () => {
           } else if (extractError.message.includes('OCR services')) {
             throw new Error("Text extraction requires OCR services. Please configure either Google Gemini or Azure Form Recognizer.");
           }
-          throw extractError;
+          throw new Error(`Text extraction failed: ${extractError.message}`);
         }
-        throw new Error("Failed to extract text from the document. Please try a different file.");
+        throw new Error("Failed to extract text from the document. Please try a different file format.");
       }
       
       // Now analyze the extracted text
@@ -160,19 +167,15 @@ const ContractAnalyzer: React.FC = () => {
     } catch (error) {
       console.error('Error in handleAnalyze:', error);
       
-      if (error instanceof Error) {
-        // Handle rate limiting errors specifically
-        if (error.message.includes('Too many requests')) {
-          setUploadError("Rate limit reached. Please wait before making another request.");
-        } else if (error.message.includes('API key')) {
-          setUploadError("Service configuration error. Please contact the administrator.");
-        } else if (error.message.includes('network') || error.message.includes('internet')) {
-          setUploadError("Network error. Please check your internet connection and try again.");
-        } else {
-          setUploadError(error.message);
-        }
+      // Handle rate limiting errors specifically
+      if (error instanceof Error && error.message.includes('Too many requests')) {
+        setUploadError("Rate limit reached. Please wait before making another request.");
+      } else if (error instanceof Error && error.message.includes('API key')) {
+        setUploadError("Service configuration error. Please contact the administrator.");
+      } else if (error instanceof Error && error.message.includes('network') || (error instanceof Error && error.message.includes('internet'))) {
+        setUploadError("Network error. Please check your internet connection and try again.");
       } else {
-        setUploadError("An unexpected error occurred. Please try again.");
+        setUploadError(error instanceof Error ? error.message : "An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsAnalyzing(false);
