@@ -48,3 +48,5 @@ export async function extractTextFromPdf(file: File): Promise<string> {
       // Use the imported worker URL as fallback
       pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     }
+  }
+}
