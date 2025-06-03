@@ -1,182 +1,103 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
-// Function to analyze contract with Gemini API
-export async function analyzeContractWithGemini(fileContent: string): Promise<{ success: boolean; analysis?: string; error?: string }> {
+// Define a placeholder for the expected structured response.
+// You should replace 'any' with a more specific interface matching what you ask Gemini for.
+// For example, a subset of your UI's AnalysisResult interface.
+export type StructuredAnalysisResponse = any; // TODO: Define this more accurately
+
+/**
+ * Sends a prompt to the Gemini API and expects a JSON response.
+ * @param promptText The full prompt string, which should instruct Gemini to return JSON.
+ * @returns A promise that resolves to the parsed JSON object or an error.
+ */
+export async function getStructuredAnalysisFromGemini(
+  promptText: string
+): Promise<{ success: boolean; analysis?: StructuredAnalysisResponse; error?: string }> {
   try {
-    // Get API key from environment variable or use a placeholder for development
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-    
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // Ensure this is NOT the hardcoded key
+
     if (!apiKey) {
       return {
         success: false,
         error: "Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your environment variables."
       };
     }
-    
-    // Initialize the Gemini API client
+
     const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Use the gemini-1.5-flash model for better performance
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    // Configure safety settings
-    const safetySettings = [
-      {
-        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-    ];
-    
-    // Create a structured prompt for contract analysis
-    const prompt = `
-You are an expert legal and financial AI assistant specializing in detailed contract analysis.
-
-Please analyze the following contract text and provide a comprehensive analysis with the following structure:
-
-# Contract Analysis Report
-
-## Executive Summary
-[Provide a brief summary of the contract, its purpose, and key points]
-
-## Description
-[Short description of what this contract is for]
-
-## Document Title/Type
-[Identify the type of contract]
-
-## Parties involved:
-- [List all parties in the contract with their roles]
-
-## Financial Information
-
-### Spend FY2024
-[Identify current fiscal year spend if mentioned]
-
-### Total Contract Value
-[Total value of the contract]
-
-## Key Dates
-
-### Effective Date
-[When the contract starts]
-
-### Expiration Date
-[When the contract ends]
-
-### Renewal Date
-[When the contract is up for renewal]
-
-## Rate Cards
-[Extract any rate cards or pricing tables if present, formatted as a markdown table]
-
-## Payment Terms
-[Payment schedule, terms, and conditions]
-
-## Term and Termination
-
-### Contract Term/Duration
-[Length of the contract]
-
-### Renewal Clauses
-[How renewal works]
-
-### Termination Rights
-[How either party can terminate]
-
-## Findings
-[List key findings, numbered 1-N]
-
-## Risks
-[List identified risks, categorized as high/medium/low]
-
-## Recommendations
-[Provide actionable recommendations to address risks or improve the contract]
-
-IMPORTANT: Format your response using markdown for readability. For any sections where information is not available in the contract, indicate "Not specified" or "Not found in document".
-`;
-
-    // Combine prompt with contract text
-    const fullPrompt = `${prompt}\n\nCONTRACT TEXT:\n${fileContent.substring(0, 100000)}`; // Limit text to avoid token limits
-    
-    console.log("Sending request to Gemini API...");
-    console.log("Using model: gemini-pro");
-    
-    // Generate content with the model
-    try {
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: fullPrompt.substring(0, 30000) }] }],
-        safetySettings: safetySettings,
+    const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        // IMPORTANT: Tell the model to generate JSON
         generationConfig: {
-          temperature: 0.2, // Slightly higher temperature for more creative analysis
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 8192,
-        },
-      });
-    
-      const response = result.response;
-      const text = response.text();
-    
-      if (!text || text.trim() === "") {
-        throw new Error("Received empty response from Gemini API");
-      }
-    
-      console.log("Received response from Gemini API");
-    
+            responseMimeType: "application/json",
+        }
+    });
+
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+
+    // The promptText already contains the contract and instructions.
+    // We are now relying on promptText to ask for JSON.
+    // Limit the prompt size if necessary, though gemini-1.5-flash has a large context window.
+    const effectivePrompt = promptText.substring(0, 32000); // Example limit
+
+    console.log("Sending request to Gemini API for STRUCTURED JSON response...");
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: effectivePrompt }] }],
+      safetySettings: safetySettings,
+      // generationConfig is now set when initializing the model for responseMimeType
+      // but you can still override temperature, topP, topK, maxOutputTokens here if needed.
+      // For JSON, temperature is often kept low (e.g., 0.1 or 0.2) for predictability.
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 8192, // Ensure this is enough for your JSON
+        responseMimeType: "application/json", // Reinforce, though set on model init
+      },
+    });
+
+    const response = result.response;
+    const responseText = response.text();
+
+    if (!responseText || responseText.trim() === "") {
+      throw new Error("Received empty response from Gemini API. Expected JSON.");
+    }
+
+    console.log("Received raw JSON string from Gemini API:", responseText);
+
+    try {
+      const parsedAnalysis: StructuredAnalysisResponse = JSON.parse(responseText);
       return {
         success: true,
-        analysis: text
+        analysis: parsedAnalysis
       };
-    } catch (apiError) {
-      console.error("Gemini API error:", apiError);
+    } catch (parseError) {
+      console.error("Failed to parse JSON response from Gemini:", parseError);
+      console.error("Raw response was:", responseText);
       return {
         success: false,
-        error: apiError instanceof Error ? apiError.message : "Error calling Gemini API"
+        error: `Failed to parse JSON response from Gemini. Raw response: ${responseText.substring(0, 200)}...` // Include snippet for debugging
       };
     }
+
   } catch (error) {
-    console.error('Error in analyzeContractWithGemini:', error);
-    
-    // Provide more specific error messages
+    console.error('Error in getStructuredAnalysisFromGemini:', error);
+    // Handle specific error types as you did before
     if (error instanceof Error) {
-      if (error.message.includes("API key") || error.message.includes("key not valid")) {
-        return {
-          success: false,
-          error: "Invalid or missing API key. Please check your Gemini API key configuration."
-        };
-      } else if (error.message.includes("429") || error.message.includes("quota") || error.message.includes("rate limit")) {
-        return {
-          success: false,
-          error: "API rate limit exceeded. Please try again later or check your API quota."
-        };
-      } else if (error.message.includes("network") || error.message.includes("connection") || error.message.includes("CORS")) {
-        return {
-          success: false,
-          error: "Network error. This may be due to CORS restrictions in the WebContainer environment."
-        };
-      } else if (error.message.includes("model") || error.message.includes("not available")) {
-        return {
-          success: false,
-          error: "The specified AI model is not available. Please try a different model."
-        };
-      }
+        // ... (your existing detailed error handling for API keys, quota, network etc.)
+         if (error.message.includes("API key") || error.message.includes("key not valid")) {
+             return { success: false, error: "Invalid or missing API key for Gemini."};
+         } // ... etc.
+         return { success: false, error: error.message };
     }
-    
     return {
       success: false,
-      error: error instanceof Error ? error.message : "An unexpected error occurred while using Gemini API"
+      error: "An unexpected error occurred while calling Gemini API for structured analysis."
     };
   }
 }
