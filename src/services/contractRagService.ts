@@ -2,7 +2,7 @@ import { Document } from "@langchain/core/documents";
 // ragService functions now expect Document[] and handle chunking internally
 // queryVectorStore now supports an optional metadata filter
 import { initializeVectorStore, queryVectorStore, addDocumentsToVectorStore } from './ragService';
-import { extractTextFromPDF } from './pdfService'; // Assuming direct import is fine
+import { extractTextFromPdf } from './pdfService'; // Assuming direct import is fine
 
 // Import the new function from geminiService and the placeholder type
 import { getStructuredAnalysisFromGemini, StructuredAnalysisResponse } from './geminiService';
@@ -130,7 +130,7 @@ export async function addContractFileToRAG(contractId: string, file: File, userM
 
     let text: string;
     if (file.type === 'application/pdf') {
-      text = await extractTextFromPDF(file);
+      text = await extractTextFromPdf(file);
     } else if (file.type.startsWith('text/') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
       // For DOC/DOCX, pdfService would need to be enhanced or use a different parser.
       // Assuming extractTextFromPDF can handle them or text extraction is simplified.

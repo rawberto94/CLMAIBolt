@@ -12,7 +12,7 @@ import {
   Settings
 } from 'lucide-react';
 import { getStructuredAnalysisFromGemini } from '../../services/geminiService';
-import { extractTextFromPDF } from '../../services/pdfService';
+import { extractTextFromPdf } from '../../services/pdfService';
 
 interface AnalysisResult {
   overview: {
@@ -125,7 +125,7 @@ const ContractAnalyzer: React.FC = () => {
       let fileContent: string;
       
       try {
-        fileContent = await extractTextFromPDF(file);
+        fileContent = await extractTextFromPdf(file);
         
         if (!fileContent || fileContent.trim() === '') {
           throw new Error("No text content could be extracted from the file. The file might be empty or corrupted.");
