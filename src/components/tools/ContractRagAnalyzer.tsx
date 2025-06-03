@@ -836,3 +836,129 @@ const ContractRagAnalyzer: React.FC = () => {
 };
 
 export default ContractRagAnalyzer;
+// In ContractRagAnalyzer.tsx
+
+// ... (imports, including actualInitializeContractRAG, addContractFileToRAG)
+// Import the new analyzeContractWithRAG that returns a structured object
+import {
+  analyzeContractWithRAG as actualAnalyzeContractWithRAGStructured, // Renamed for clarity
+  TargetJsonStructure // Import the structure type if defined in contractRagService
+} from '../../services/contractRagService'; // Adjust path
+
+// ... (AnalysisResult interface and other states)
+
+const handleAnalyze = async (fileToAnalyze?: File) => {
+  // ... (file checking, setIsAnalyzing, progress simulation - same as before)
+  const file = fileToAnalyze || currentFile;
+  // ... (error checks for file and initialization)
+
+  try {
+    // ... (fileContent extraction - same as before)
+
+    const newContractId = `contract_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+    setCurrentContractId(newContractId);
+
+    await addContractFileToRAG(newContractId, file, { /* ... metadata ... */ });
+
+    let userQuery = "Provide a comprehensive analysis of this contract. ";
+    // ... (construct userQuery based on analysisOptions - same as before)
+
+    // **** CALL THE NEW STRUCTURED ANALYSIS FUNCTION ****
+    const structuredAnalysisResult: TargetJsonStructure = await actualAnalyzeContractWithRAGStructured(
+      fileContent,
+      userQuery.trim(),
+      {
+        targetContractId: newContractId,
+        retrieveSimilarContext: true,
+        // ... other options
+      }
+    );
+
+    console.log("Received structured analysis from service:", structuredAnalysisResult);
+
+    // **** MAP TargetJsonStructure to your UI's AnalysisResult ****
+    // This mapping depends on how closely TargetJsonStructure matches AnalysisResult
+    const newUiAnalysis: AnalysisResult = {
+      id: newContractId,
+      fileName: file.name,
+      timestamp: new Date().toISOString(),
+      summary: structuredAnalysisResult.executiveSummary || "Summary not available.",
+      metadata: {
+        contractType: structuredAnalysisResult.documentType || 'N/A',
+        parties: structuredAnalysisResult.partiesInvolved?.map(p => p.name) || [],
+        effectiveDate: structuredAnalysisResult.keyDates?.effectiveDate || 'N/A',
+        expirationDate: structuredAnalysisResult.keyDates?.expirationDate || 'N/A',
+        // ... map other metadata fields
+        value: 'N/A', jurisdiction: 'N/A', confidentiality: false, // Defaults
+      },
+      keyFindings: structuredAnalysisResult.identifiedRisks?.map(r => ({ // Example: mapping risks to keyFindings
+          type: 'risk',
+          label: `Risk: ${r.description.substring(0,30)}...`,
+          value: r.description,
+          risk: r.level as 'low' | 'medium' | 'high' // Type assertion
+      })) || [],
+      risks: structuredAnalysisResult.identifiedRisks?.map(r => ({
+          level: r.level,
+          description: r.description,
+          mitigation: r.mitigation
+      })) || [],
+      obligations: structuredAnalysisResult.keyObligations?.map(o => ({
+          description: o.description,
+          responsible: o.responsibleParty,
+          dueDate: o.dueDate,
+          status: 'pending' // Default status
+      })) || [],
+      clauses: [], // TODO: Populate if you add clauses to TargetJsonStructure
+      score: { overall: 0, risk: 0, compliance: 0, clarity: 0 }, // TODO: Calculate or get from LLM
+      insights: structuredAnalysisResult.recommendations || [], // Using recommendations as insights for now
+      recommendations: structuredAnalysisResult.recommendations || [],
+    };
+
+    setCurrentAnalysis(newUiAnalysis);
+    setAnalyses(prev => { /* ... update analyses list ... */ });
+    setRawAnalysisText(JSON.stringify(structuredAnalysisResult, null, 2)); // Store raw JSON for debugging/view
+
+  } catch (error) {
+    // ... (error handling - same as before)
+  } finally {
+    // ... (setIsAnalyzing(false), progress - same as before)
+  }
+};
+
+// The handleChatSubmit function would also use actualAnalyzeContractWithRAGStructured
+// and its prompt would need to be adjusted if you want a specific chat-like JSON response,
+// or it can continue to get a string response if that's preferred for chat.
+// For simplicity, let's assume chat still gets a string for now by calling the *original*
+// analyzeContractWithRAG or a similar function that doesn't enforce JSON.
+// Or, you can adapt the chat to also expect a simple JSON like { "response": "..." }
+
+// If you want chat to also use the structured analysis:
+const handleChatSubmit = async () => {
+    // ... (initial checks for chatInput, currentContractId)
+    // ... (retrieve contractTextForChat)
+
+    try {
+        // Construct a prompt for chat that asks for a focused answer, potentially in simple JSON
+        const chatPromptForJson = `
+        Based on the following contract text and previous analysis, answer the user's question.
+        Return your answer as a JSON object with a single key "chatResponse": "Your answer here".
+
+        Contract Text (or relevant excerpts):
+        ${contractTextForChat.substring(0, 15000)} 
+        User Question: "${userMessage}"
+        `;
+        // (This is a simplified chat prompt, you'd integrate RAG context like in analyzeContractWithRAG)
+
+        const result = await getStructuredAnalysisFromGemini(chatPromptForJson); // Using the direct gemini service call
+
+        if (result.success && result.analysis && result.analysis.chatResponse) {
+            setChatMessages(prev => [...prev, { role: 'assistant', content: result.analysis.chatResponse }]);
+        } else {
+            throw new Error(result.error || "Received invalid structured response for chat.");
+        }
+    } catch (error) {
+        // ... (chat error handling)
+    } finally {
+        // ... (setIsProcessingChat(false))
+    }
+};
