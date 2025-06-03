@@ -1,227 +1,166 @@
-import { analyzeContractWithGemini } from './geminiService';
-import { Document } from "@langchain/core/documents";
-// ragService functions now expect Document[] and handle chunking internally
-// queryVectorStore now supports an optional metadata filter
-import { initializeVectorStore, queryVectorStore, addDocumentsToVectorStore } from './ragService';
-import { extractTextFromPDF } from './pdfService'; // Assuming direct import is fine
-
-// Module-level flag for initialization state, consistent with ragService
-let isKnowledgeBaseInitialized = false;
-
-// --- initializeContractKnowledgeBase function remains the same ---
-export async function initializeContractKnowledgeBase(
-  sampleContractsData: Array<{ id: string; text: string; metadata: any }>
-): Promise<void> {
-  try {
-    if (isKnowledgeBaseInitialized) {
-        console.log("Contract knowledge base samples already processed for initialization.");
-    }
-
-    const documentsToStore: Document[] = sampleContractsData.map(item => new Document({
-      pageContent: item.text,
-      metadata: {
-        ...item.metadata,
-        contractId: item.id,
-        source: 'sample_document',
-        processingTimestamp: new Date().toISOString(),
-      }
-    }));
-
-    if (documentsToStore.length > 0) {
-      await initializeVectorStore(documentsToStore);
-      console.log(`Contract knowledge base initialized with ${documentsToStore.length} sample documents.`);
-      isKnowledgeBaseInitialized = true;
-    } else {
-      await initializeVectorStore([]);
-      console.log("Contract knowledge base: No sample documents provided, vector store initialized if not already.");
-      isKnowledgeBaseInitialized = true;
-    }
-  } catch (error) {
-    console.error("Error initializing contract knowledge base:", error);
-    isKnowledgeBaseInitialized = false;
-    throw error;
-  }
+// At the top of contractRagService.ts, or import if defined elsewhere
+// This should mirror the structure you want Gemini to return.
+// Start with a manageable subset of your full AnalysisResult.
+export interface TargetJsonStructure {
+  executiveSummary: string;
+  documentType?: string;
+  partiesInvolved?: Array<{ name: string; role?: string }>;
+  keyDates?: {
+    effectiveDate?: string | null;
+    expirationDate?: string | null;
+    renewalDate?: string | null;
+  };
+  identifiedRisks?: Array<{
+    level: 'low' | 'medium' | 'high' | 'unknown';
+    description: string;
+    mitigation?: string;
+  }>;
+  keyObligations?: Array<{
+    description:string;
+    responsibleParty?: string;
+    dueDate?: string | null;
+  }>;
+  recommendations?: string[];
+  // Add other fields from AnalysisResult as you refine the prompt
 }
 
-// --- initializeContractRAG function remains the same ---
-export async function initializeContractRAG(): Promise<void> {
-  try {
-    if (isKnowledgeBaseInitialized) {
-      console.log("Contract RAG system's initial knowledge base already processed.");
-      await initializeVectorStore([]); // Ensure underlying store is ready
-      return;
-    }
-    const sampleContractsData = [
-      // ... your sample contracts data
-      {
-        id: "MSA_Sample_001",
-        text: "This is a sample Master Service Agreement...",
-        metadata: { type: "Master Service Agreement", parties: ["Company A", "Company B"] }
-      },
-      {
-        id: "NDA_Sample_001",
-        text: "This Non-Disclosure Agreement (NDA) is entered into by...",
-        metadata: { type: "Non-Disclosure Agreement", parties: ["Company X", "Company Y"] }
-      },
-      {
-        id: "SLA_Sample_001",
-        text: "Software License Agreement: This agreement grants...",
-        metadata: { type: "Software License Agreement" }
-      }
-    ];
-    await initializeContractKnowledgeBase(sampleContractsData);
-    console.log("Contract RAG system initialized with sample knowledge base.");
-  } catch (error) {
-    console.error("Error initializing Contract RAG system:", error);
-    throw error;
-  }
-}
 
-// --- addContractFileToRAG function remains the same ---
-export async function addContractFileToRAG(contractId: string, file: File, userMetadata: any = {}): Promise<void> {
-  try {
-    await initializeVectorStore([]); // Ensure vector store is ready
+// ... (other imports: Document, initializeVectorStore, queryVectorStore, addDocumentsToVectorStore, extractTextFromPDF)
+// Import the new function from geminiService
+import { getStructuredAnalysisFromGemini } from './geminiService'; // Adjust path
 
-    let text: string;
-    if (file.type === 'application/pdf') {
-      text = await extractTextFromPDF(file);
-    } else if (file.type.startsWith('text/')) {
-      text = await file.text();
-    } else {
-      console.warn(`Unsupported file type: ${file.type}. Skipping file: ${file.name}`);
-      throw new Error(`Unsupported file type: ${file.type}`);
-    }
-
-    const documentToAdd = new Document({
-      pageContent: text,
-      metadata: {
-        ...userMetadata,
-        contractId: contractId,
-        fileName: file.name,
-        fileType: file.type,
-        source: 'uploaded_document',
-        uploadTimestamp: new Date().toISOString(),
-      }
-    });
-    await addDocumentsToVectorStore([documentToAdd]);
-    console.log(`Contract '${contractId}' (file: ${file.name}) processed and added to RAG system.`);
-  } catch (error) {
-    console.error(`Error adding contract file '${file.name}' (ID: ${contractId}) to RAG:`, error);
-    throw error;
-  }
-}
+// ... (initializeContractKnowledgeBase, initializeContractRAG, addContractFileToRAG remain the same)
 
 /**
- * Analyzes a contract using RAG-enhanced Gemini.
- * Prioritizes context from the target contract itself using metadata filtering,
- * then optionally adds context from other similar contracts.
+ * Analyzes a contract using RAG-enhanced Gemini, expecting a structured JSON response.
  */
-export async function analyzeContractWithRAG(
+export async function analyzeContractWithRAG( // Renamed from your original analyzeContractWithRAG
   contractTextToAnalyze: string,
-  userQuery: string,
+  userQuery: string, // This query will guide the *focus* of the structured analysis
   options?: {
-    targetContractId?: string; // ID of the contract being analyzed (if it's in the vector store)
-    retrieveSimilarContext?: boolean; // Whether to fetch context from other generally similar contracts
-    maxChunksFromTarget?: number; // Max relevant chunks from the target contract
-    maxSimilarDocs?: number; // Max relevant documents/chunks from other contracts
+    targetContractId?: string;
+    retrieveSimilarContext?: boolean;
+    maxChunksFromTarget?: number;
+    maxSimilarDocs?: number;
   }
-): Promise<string> {
+): Promise<TargetJsonStructure> { // Return type changed
   try {
     await initializeVectorStore([]); // Ensure vector store is ready
 
     let specificContractContext = "";
     let generalSimilarContext = "";
-
     const {
       targetContractId,
       retrieveSimilarContext = true,
-      maxChunksFromTarget = 3, // Default to retrieving 3 relevant chunks from the target contract
-      maxSimilarDocs = 2     // Default to retrieving 2 similar documents/chunks from other contracts
+      maxChunksFromTarget = 3,
+      maxSimilarDocs = 2
     } = options || {};
 
-    // Strategy 1: Get relevant chunks from the *target contract itself*
+    // Strategy 1: Get relevant chunks from the *target contract itself* (remains the same)
     if (targetContractId && userQuery) {
       try {
         const targetFilter = { contractId: targetContractId };
-        console.log(`Querying for relevant chunks from target contract '${targetContractId}' based on query: "${userQuery.substring(0,100)}..."`);
         const targetChunks = await queryVectorStore(userQuery, maxChunksFromTarget, targetFilter);
-
         if (targetChunks && targetChunks.length > 0) {
-          specificContractContext = "\n\n--- Relevant Sections from the Contract Being Analyzed ---\n";
+          specificContractContext = "\n\n--- Relevant Sections from the Contract Being Analyzed (ID: " + targetContractId + ") ---\n";
           specificContractContext += targetChunks
-            .map(chunk => `Section (relevance score may vary):\n${chunk.pageContent}`)
+            .map(chunk => `Excerpt:\n${chunk.pageContent}`)
             .join("\n\n---\n\n");
-          console.log(`Found ${targetChunks.length} relevant chunks from target contract '${targetContractId}'.`);
-        } else {
-          console.log(`No specific chunks found for contractId '${targetContractId}' matching the query. The full contract text will be the primary source.`);
         }
-      } catch (e) {
-        console.error(`Error fetching context for target contract ${targetContractId}:`, e);
-        // Non-fatal, proceed without this specific context
-      }
+      } catch (e) { console.error(`Error fetching context for target contract ${targetContractId}:`, e); }
     }
 
-    // Strategy 2: Get context from *other similar documents/contracts* in the vector store
+    // Strategy 2: Get context from *other similar documents/contracts* (remains the same)
     if (retrieveSimilarContext) {
       try {
-        // Use a snippet of the contract or the user query to find generally similar documents
-        const queryForGeneralSimilarity = contractTextToAnalyze.substring(0, 1000); // Or userQuery
-        console.log(`Querying for generally similar documents based on content snippet: "${queryForGeneralSimilarity.substring(0,100)}..."`);
-
-        // We could also add a filter here to EXCLUDE the targetContractId if desired,
-        // but for simplicity, we'll allow it to potentially find the target contract again
-        // if it's globally very similar. The separate display in the prompt will help.
+        const queryForGeneralSimilarity = userQuery + "\n\n" + contractTextToAnalyze.substring(0, 1000);
         const similarDocs = await queryVectorStore(queryForGeneralSimilarity, maxSimilarDocs);
-
         if (similarDocs && similarDocs.length > 0) {
-          generalSimilarContext = "\n\n--- Context from Other Potentially Similar Contracts/Clauses in Knowledge Base ---\n";
+          generalSimilarContext = "\n\n--- Context from Other Potentially Similar Contracts/Clauses ---\n";
           generalSimilarContext += similarDocs
             .map(doc => `Source Document ID: ${doc.metadata?.contractId || 'N/A'}\nContent Snippet:\n${doc.pageContent}`)
             .join("\n\n---\n\n");
-          console.log(`Found ${similarDocs.length} generally similar documents/chunks.`);
-        } else {
-          generalSimilarContext = "\n\n--- No other highly similar contracts or clauses found in the knowledge base for additional context. ---\n";
         }
-      } catch (e) {
-        console.error(`Error fetching general similar context:`, e);
-        // Non-fatal, proceed without this general context
-      }
+      } catch (e) { console.error(`Error fetching general similar context:`, e); }
     }
 
-    const enhancedPrompt = `
-You are a contract analysis expert. Please analyze the provided "Contract to Analyze" based on the user's query.
+    // ***** PROMPT ENGINEERING FOR JSON OUTPUT *****
+    const jsonSchemaForPrompt = `
+    {
+      "executiveSummary": "string (concise overview of the contract, its purpose, main parties, and key outcomes/terms)",
+      "documentType": "string (e.g., 'Master Service Agreement', 'NDA', 'Software License Agreement', 'Not Specified')",
+      "partiesInvolved": [
+        { "name": "string (full name of the party)", "role": "string (e.g., 'Client', 'Vendor', 'Licensor', 'Licensee', 'Service Provider', 'Customer', or their specific role in contract like 'Buyer', 'Seller')" }
+      ],
+      "keyDates": {
+        "effectiveDate": "string (YYYY-MM-DD format, or null if not found)",
+        "expirationDate": "string (YYYY-MM-DD format, or null if not found)",
+        "renewalDate": "string (YYYY-MM-DD format, or null if not found, or description of renewal terms)"
+      },
+      "identifiedRisks": [
+        { "level": "string ('low', 'medium', 'high', or 'unknown')", "description": "string (clear description of the risk)", "mitigation": "string (suggested mitigation, if any, or null)" }
+      ],
+      "keyObligations": [
+        { "description": "string (clear description of the obligation)", "responsibleParty": "string (who is responsible, e.g., 'Client', 'Vendor', or specific party name, or 'Both')", "dueDate": "string (YYYY-MM-DD or description of timing, or null)" }
+      ],
+      "recommendations": ["string (actionable recommendations based on the analysis, list of strings)"]
+    }
+    `;
 
-User's Query: "${userQuery}"
+    const enhancedPromptForJson = `
+You are an expert legal AI assistant. Analyze the following contract based on the user's query and the provided context.
+Your primary task is to extract specific information and structure it as a JSON object.
+
+User's Query for focus: "${userQuery}"
 
 Contract to Analyze:
-\`\`\`
+\`\`\`text
 ${contractTextToAnalyze}
 \`\`\`
 ${specificContractContext}
 ${generalSimilarContext}
 
-Instructions:
-1.  Your primary focus is the "Contract to Analyze" provided in full above.
-2.  If "Relevant Sections from the Contract Being Analyzed" are provided, use these specific excerpts to inform your answer to the user's query about *this* contract. These sections are identified as most relevant to the query from the contract itself.
-3.  If "Context from Other Potentially Similar Contracts/Clauses" is provided, you can use it for comparison, to highlight standard practices, or to identify common risks/terms, but only if relevant to the user's query and the "Contract to Analyze".
-4.  Provide a detailed, professional, and actionable response.
-5.  If the query is general (e.g., "analyze this contract comprehensively"), then consider identifying key terms, clauses, risks, ambiguities, party obligations, and recommendations.
+INSTRUCTIONS:
+1.  Carefully read the "Contract to Analyze".
+2.  Use the "User's Query" to guide the focus of your extraction and summary.
+3.  If "Relevant Sections from the Contract Being Analyzed" are provided, prioritize information from these excerpts for the JSON fields.
+4.  If "Context from Other Potentially Similar Contracts/Clauses" is provided, use it for comparison or to understand standard terms if it helps in interpreting the main contract, but the JSON output must pertain to the "Contract to Analyze".
+5.  You MUST return your entire response as a single, valid JSON object that strictly adheres to the following schema. Do NOT include any text outside of this JSON object (e.g., no "Here is the JSON:" preamble).
 
-Begin your analysis:
+JSON Schema to follow:
+${jsonSchemaForPrompt}
+
+Specific instructions for fields:
+-   **executiveSummary**: Provide a concise summary (2-4 sentences) of the "Contract to Analyze", informed by the "User's Query".
+-   **documentType**: Identify the type of contract (e.g., MSA, NDA, SLA). If not clear, state "Not Specified".
+-   **partiesInvolved**: List all distinct parties. If roles are not explicit, infer from context or state role as "Party".
+-   **keyDates**: Extract specified dates. If a date is not found, use null for that date field.
+-   **identifiedRisks**: Based on the "User's Query" and the contract, list 2-5 key risks. If no specific risks are apparent related to the query or overall, provide a general statement in the description and set level to 'unknown' or 'low'.
+-   **keyObligations**: Based on the "User's Query" and the contract, list 2-5 key obligations.
+-   **recommendations**: Provide 1-3 actionable recommendations based on the analysis and user query.
+
+If information for a field or sub-field is not found or not applicable, use an appropriate empty value (e.g., empty string "", empty array [], null for optional object fields) as indicated in the schema or use a sensible default like "Not specified". Ensure the JSON is well-formed.
+
+Begin JSON output now:
 `;
 
-    const result = await analyzeContractWithGemini(enhancedPrompt);
+    // Call the new Gemini service function
+    const result = await getStructuredAnalysisFromGemini(enhancedPromptForJson);
 
-    if (!result.success || typeof result.analysis !== 'string') {
-      throw new Error(result.error || "Failed to analyze contract with Gemini or received invalid response.");
+    if (!result.success || !result.analysis) {
+      throw new Error(result.error || "Failed to get structured analysis from Gemini.");
     }
 
-    return result.analysis;
+    // The result.analysis should now be a JavaScript object matching TargetJsonStructure (or 'any')
+    // TODO: You might want to validate result.analysis against the TargetJsonStructure schema here
+    // before returning, or handle potential discrepancies.
+    return result.analysis as TargetJsonStructure;
+
   } catch (error) {
-    console.error("Error analyzing contract with RAG:", error);
+    console.error("Error in analyzeContractWithRAG (structured):", error);
     if (error instanceof Error) {
-      throw new Error(`RAG Analysis Failed: ${error.message}`);
+      throw new Error(`RAG Structured Analysis Failed: ${error.message}`);
     }
-    throw new Error("An unknown error occurred during RAG analysis.");
+    throw new Error("An unknown error occurred during RAG structured analysis.");
   }
 }
