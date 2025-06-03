@@ -212,3 +212,111 @@ export async function addDocumentsToVectorStore(documentsToAdd: Document[]): Pro
     throw error;
   }
 }
+// In src/services/ragService.ts
+
+// ... (other imports and code remain the same)
+
+class SimpleVectorStore {
+  documents: Array<{ id: string, text: string, metadata: any, embedding?: number[] }> = [];
+  embeddingCache: Map<string, number[]> = new Map();
+  genAI: GoogleGenerativeAI;
+  embeddingModel: any;
+
+  constructor(apiKey: string) {
+    // ... (constructor remains the same)
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.embeddingModel = this.genAI.getGenerativeModel({
+      model: "text-embedding-004",
+      // ... safetySettings
+    });
+  }
+
+  async addDocuments(documentsToAdd: Document[]) {
+    // ... (addDocuments remains the same)
+  }
+
+  // MODIFIED: Added metadata filter parameter
+  async similaritySearch(
+    query: string,
+    k: number = 5,
+    filter?: { [key: string]: any } // Optional metadata filter
+  ): Promise<Document[]> {
+    if (this.documents.length === 0) {
+      return [];
+    }
+
+    try {
+      const queryEmbedding = await this.getEmbedding(query);
+
+      let candidateDocuments = this.documents;
+
+      // Apply metadata filter if provided
+      if (filter && Object.keys(filter).length > 0) {
+        candidateDocuments = this.documents.filter(doc => {
+          if (!doc.metadata) return false;
+          return Object.entries(filter).every(([key, value]) => {
+            return doc.metadata[key] === value;
+          });
+        });
+      }
+
+      if (candidateDocuments.length === 0) {
+        console.log("No documents matched the metadata filter.");
+        return [];
+      }
+
+      const similarities = candidateDocuments
+        .filter(doc => doc.embedding)
+        .map((doc) => ({ // Removed 'index' as it's relative to candidateDocuments now
+          originalDoc: doc,
+          similarity: this.cosineSimilarity(queryEmbedding, doc.embedding!)
+        }));
+
+      similarities.sort((a, b) => b.similarity - a.similarity);
+      const topK = similarities.slice(0, k);
+
+      return topK.map(({ originalDoc }) => {
+        return new Document({
+          pageContent: originalDoc.text,
+          metadata: originalDoc.metadata
+        });
+      });
+    } catch (error) {
+      console.error("Error in similarity search:", error);
+      return [];
+    }
+  }
+
+  private async getEmbedding(text: string): Promise<number[]> {
+    // ... (getEmbedding remains the same)
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    // ... (cosineSimilarity remains the same)
+  }
+}
+
+// ... (rest of the file, including initializeVectorStore, queryVectorStore, addDocumentsToVectorStore)
+
+// MODIFIED: Update queryVectorStore to pass the filter
+export async function queryVectorStore(
+  query: string,
+  k: number = 5,
+  filter?: { [key: string]: any } // Added filter parameter
+): Promise<Document[]> {
+  if (!vectorStore) {
+    throw new Error("Vector store not initialized. Call initializeVectorStore first.");
+  }
+
+  try {
+    // Pass the filter to the vector store's similaritySearch
+    const results = await vectorStore.similaritySearch(query, k, filter);
+    return results;
+  } catch (error) {
+    console.error("Error querying vector store:", error);
+    throw error;
+  }
+}
+
+// No changes needed for initializeVectorStore or addDocumentsToVectorStore for this feature
+// as they deal with adding documents, not querying them with filters.
