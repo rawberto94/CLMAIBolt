@@ -1,6 +1,6 @@
-import { createClient } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = createClient(import.meta.env.VITE_GEMINI_API_KEY);
+const client = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 interface AnalysisResult {
   success: boolean;
