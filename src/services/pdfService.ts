@@ -13,9 +13,15 @@ if (typeof window !== 'undefined' && window.document) { // Ensure this runs only
 // --- End PDF.js Worker Configuration ---
 
 // --- Azure Form Recognizer Configuration ---
+// Only initialize Azure client if credentials are available
+let client: DocumentAnalysisClient | null = null;
+
+// Check if Azure credentials are available
 const endpoint = import.meta.env.VITE_AZURE_ENDPOINT;
 const key = import.meta.env.VITE_AZURE_KEY;
-const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+if (endpoint && key) {
+  client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+}
 
 // --- Gemini Configuration ---
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -72,7 +78,10 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     console.error('Error extracting text from PDF:', error);
     
     try {
-      // Fallback to Azure Form Recognizer
+      // Fallback to Azure Form Recognizer if available
+      if (!client) {
+        throw new Error('Azure Form Recognizer not configured');
+      }
       const poller = await client.beginAnalyzeDocument(
         "prebuilt-document",
         await file.arrayBuffer()
