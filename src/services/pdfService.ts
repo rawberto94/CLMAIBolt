@@ -15,6 +15,7 @@ if (typeof window !== 'undefined' && window.document) { // Ensure this runs only
 // --- Azure Form Recognizer Configuration ---
 const endpoint = import.meta.env.VITE_AZURE_ENDPOINT;
 const key = import.meta.env.VITE_AZURE_KEY;
+const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
 
 // --- Gemini Configuration ---
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -48,5 +49,44 @@ export async function extractTextFromPdf(file: File): Promise<string> {
       // Use the imported worker URL as fallback
       pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     }
+    
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Load the PDF document using PDF.js
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = '';
+    
+    // Iterate through each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+    
+    return fullText.trim();
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    
+    try {
+      // Fallback to Azure Form Recognizer
+      const poller = await client.beginAnalyzeDocument(
+        "prebuilt-document",
+        await file.arrayBuffer()
+      );
+      
+      const result = await poller.pollUntilDone();
+      
+      if (result.content) {
+        return result.content;
+      }
+    } catch (azureError) {
+      console.error('Azure Form Recognizer fallback failed:', azureError);
+      throw new Error('Failed to extract text from PDF');
+    }
+    throw error;
   }
 }
