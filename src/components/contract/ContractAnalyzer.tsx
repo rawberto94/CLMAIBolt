@@ -19,7 +19,7 @@ import {
   DollarSign,
   Calendar
 } from 'lucide-react';
-import { analyzeContractWithGemini } from '../../services/geminiService';
+import { getStructuredAnalysisFromGemini } from '../../services/geminiService';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
@@ -95,7 +95,7 @@ const ContractAnalyzer: React.FC = () => {
       const fileContent = await readFileAsText(file);
       
       // Call the Gemini API to analyze the contract
-      const result = await analyzeContractWithGemini(fileContent);
+      const result = await getStructuredAnalysisFromGemini(fileContent);
       
       if (!result.success) {
         throw new Error(result.error || "Failed to analyze contract. Please try again later.");

@@ -11,7 +11,7 @@ import {
   Clock,
   Settings
 } from 'lucide-react';
-import { analyzeContractWithGemini } from '../../services/geminiService';
+import { getStructuredAnalysisFromGemini } from '../../services/geminiService';
 import { extractTextFromPDF } from '../../services/pdfService';
 
 interface AnalysisResult {
@@ -144,7 +144,7 @@ const ContractAnalyzer: React.FC = () => {
       }
       
       // Now analyze the extracted text
-      const result = await analyzeContractWithGemini(fileContent);
+      const result = await getStructuredAnalysisFromGemini(fileContent);
       
       // Update last request time after successful API call
       const completionTime = Date.now();

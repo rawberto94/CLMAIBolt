@@ -8,7 +8,7 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react';
-import { analyzeContractWithGemini } from '../../services/geminiService';
+import { getStructuredAnalysisFromGemini } from '../../services/geminiService';
 
 interface AnalysisResult {
   overview: {
@@ -101,7 +101,7 @@ const SimpleContractAnalyzer: React.FC = () => {
       let fileContent = await readFileAsText(file);
       
       // Call the Gemini API to analyze the contract
-      const result = await analyzeContractWithGemini(fileContent);
+      const result = await getStructuredAnalysisFromGemini(fileContent);
       
       // Update last request time after successful API call
       const completionTime = Date.now();
