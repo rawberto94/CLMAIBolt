@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "dev": "vite"
+  },
   "dependencies": {
     "pdfjs-dist": "^4.0.379"
   }
