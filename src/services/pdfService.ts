@@ -1,4 +1,13 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist'; // Or "pdfjs-dist/build/pdf" is also fine
+
+// Ensure this path correctly points to the worker file in your public directory
+// This should be set once, early in your application.
+if (typeof window !== 'undefined' && window.document) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.js';
+}
+
+// ... THEN your other imports like AzureKeyCredential, GoogleGenerativeAI, etc.
+// ... AND THEN the rest of your feature-rich pdfService.ts code (the one with OCR fallbacks)import * as pdfjsLib from 'pdfjs-dist';
 
 // Set the worker source to the path of the worker file in your public/assets directory
 // This line should be executed once, typically when your module is loaded.
