@@ -1,7 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { AzureKeyCredential, DocumentAnalysisClient } from "@azure/ai-form-recognizer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Buffer } from 'buffer';
 
 // Set the worker source to the correct assets path
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.js';
@@ -55,8 +54,13 @@ async function extractTextWithPdfJs(arrayBuffer: ArrayBuffer): Promise<string> {
 // Extract text using Azure Form Recognizer
 async function extractTextWithAzure(base64Data: string): Promise<string> {
   try {
-    const buffer = Buffer.from(base64Data, 'base64');
-    const poller = await client.beginAnalyzeDocument(
+    // Convert base64 to Uint8Array
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const poller = await client.beginAnalyzeDocument( 
       "prebuilt-document",
       buffer
     );
