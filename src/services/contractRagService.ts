@@ -1,3 +1,65 @@
+
+// contractRagService.ts
+
+// ... (imports) ...
+
+export interface TargetJsonStructure {
+  executiveSummary: string;
+  documentType?: string;
+  partiesInvolved?: Array<{ name: string; role?: string }>;
+  keyDates?: {
+    effectiveDate?: string | null;
+    expirationDate?: string | null;
+    renewalDate?: string | null;
+  };
+  identifiedRisks?: Array<{
+    level: 'low' | 'medium' | 'high' | 'unknown';
+    description: string;
+    mitigation?: string | null;
+  }>;
+  keyObligations?: Array<{
+    description: string;
+    responsibleParty?: string;
+    dueDate?: string | null;
+  }>;
+  recommendations?: string[];
+
+  // NEW: Financial Details
+  financialDetails?: {
+    currency?: string | null; // e.g., "USD", "EUR"
+    totalContractValue?: string | null; // Can be a number or textual description like "Up to $50,000 annually"
+    paymentTerms?: Array<{ // More structured payment terms
+        term: string; // e.g., "Net 30", "Due upon receipt"
+        schedule?: string | null; // e.g., "Monthly", "Upon milestone completion"
+        amount?: string | null; // Specific amount if applicable for this term
+    }> | null;
+    renewalFees?: string | null; // e.g., "$1000" or "Subject to annual review"
+    terminationPenalties?: Array<{ // More structured penalties
+        condition: string; // e.g., "Early termination by Client"
+        fee: string; // e.g., "3 months' service fee" or "$5000"
+    }> | null;
+    liabilityCap?: string | null; // e.g., "$1,000,000" or "Total fees paid in preceding 12 months"
+    // Add other relevant financial fields as needed
+  } | null;
+
+  // NEW: Benchmarking Insights (LLM-based)
+  benchmarkingInsights?: string[] | null; // e.g., ["Payment terms are standard for IT contracts.", "Liability cap seems lower than average for this contract type."]
+
+  // NEW: To store the taxonomy used for analysis or determined by LLM
+  contractTaxonomy?: string | null;
+
+  // Placeholder for more detailed extracted clauses if needed later
+  // extractedClauses?: Array<{ type: string; title: string; summary: string; verbatim?: string; location_in_document?: string; importance?: 'low'|'medium'|'high'; }> | null;
+
+  // Placeholder for detailed score, if LLM provides it or calculated separately
+  // contractScore?: { overall: number; risk: number; compliance: number; clarity: number; } | null;
+
+  // Placeholder for general insights if different from recommendations
+  // generalInsights?: string[] | null;
+}
+
+// ... (rest of the existing code like initializeContractKnowledgeBase, initializeContractRAG) ...
+
 import { Document } from "@langchain/core/documents";
 // ragService functions now expect Document[] and handle chunking internally
 // queryVectorStore now supports an optional metadata filter
