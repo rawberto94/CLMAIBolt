@@ -118,3 +118,115 @@ export async function getStructuredAnalysisFromGemini(
     };
   }
 }
+// src/services/geminiService.ts
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { TargetJsonStructure } from './contractRagService';
+
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+if (!apiKey) {
+  console.error("VITE_GEMINI_API_KEY is not set. Please check your .env file.");
+}
+const client = new GoogleGenerativeAI(apiKey);
+
+export interface StructuredAnalysisResponse {
+  success: boolean;
+  error?: string;
+  analysis?: TargetJsonStructure | string | null;
+}
+
+const modelName = 'gemini-1.5-pro-latest'; // Or 'gemini-pro'
+
+export async function getStructuredAnalysisFromGemini(
+  promptContent: string,
+  expectJson: boolean = true
+): Promise<StructuredAnalysisResponse> {
+  try {
+    // --- ADD LOG ---
+    console.log('[geminiService] getStructuredAnalysisFromGemini called. Expect JSON:', expectJson);
+
+    if (!promptContent || promptContent.trim() === '') {
+      // --- ADD LOG ---
+      console.warn('[geminiService] No prompt content provided.');
+      return {
+        success: false,
+        error: 'No prompt content provided for analysis',
+        analysis: null,
+      };
+    }
+
+    const model = client.getGenerativeModel({
+      model: modelName,
+      safetySettings: [ /* ... your safety settings ... */ ],
+      generationConfig: expectJson && modelName.includes('1.5')
+        ? { responseMimeType: "application/json" }
+        : undefined
+    });
+
+    // --- ADD LOG (Potentially very verbose, use for deep debugging) ---
+    // console.debug('[geminiService] Full prompt to Gemini:', promptContent);
+
+    const result = await model.generateContent(promptContent);
+    const response = result.response;
+
+    if (!response) {
+      // --- ADD LOG ---
+      console.error('[geminiService] Gemini response was empty. Prompt Feedback:', response?.promptFeedback);
+      return {
+        success: false,
+        error: 'Failed to generate analysis from Gemini (empty response)',
+        analysis: null,
+      };
+    }
+
+    const responseText = response.text();
+    // --- ADD LOG ---
+    console.log('[geminiService] Raw text from Gemini:', responseText);
+
+    if (expectJson) {
+      let jsonString = responseText;
+      const jsonRegex = /```json\s*([\s\S]*?)\s*```|({[\s\S]*})/;
+      const match = jsonRegex.exec(responseText.trim());
+
+      if (match) {
+        jsonString = match[1] || match[2];
+      } else {
+        console.warn("[geminiService] Could not find a clear JSON block (```json ... ``` or raw object) in LLM response. Attempting to parse the whole response.");
+      }
+
+      try {
+        const parsedAnalysis = JSON.parse(jsonString) as TargetJsonStructure;
+        // --- ADD LOG ---
+        console.log('[geminiService] Successfully parsed JSON analysis:', parsedAnalysis);
+        return {
+          success: true,
+          analysis: parsedAnalysis,
+        };
+      } catch (parseError) {
+        // --- MODIFIED LOG for more detail ---
+        console.error('[geminiService] Failed to parse JSON response from Gemini:', parseError);
+        console.error('[geminiService] Problematic JSON string received for parsing:', jsonString);
+        return {
+          success: false,
+          error: `Failed to parse JSON response. Error: ${(parseError as Error).message}. Raw output preview: ${responseText.substring(0, 500)}...`,
+          analysis: null,
+        };
+      }
+    } else {
+      // --- ADD LOG ---
+      console.log('[geminiService] Returning plain text analysis (expectJson was false):', responseText);
+      return {
+        success: true,
+        analysis: responseText,
+      };
+    }
+
+  } catch (error) {
+    // --- MODIFIED LOG for more detail ---
+    console.error('[geminiService] Error in getStructuredAnalysisFromGemini (catch block):', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred communicating with Gemini',
+      analysis: null,
+    };
+  }
+}
