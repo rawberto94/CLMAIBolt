@@ -340,3 +340,105 @@ JSON object:
     throw new Error("An unknown error occurred during RAG structured analysis.");
   }
 }
+// src/services/contractRagService.ts
+// ... (imports, including TargetJsonStructure) ...
+import { getStructuredAnalysisFromGemini, StructuredAnalysisResponse } from './geminiService';
+// ... (other existing code like TargetJsonStructure definition, initialize functions, addContractFileToRAG) ...
+
+export async function analyzeContractWithRAG(
+  contractTextToAnalyze: string,
+  userQuery: string,
+  options?: {
+    targetContractId?: string;
+    retrieveSimilarContext?: boolean;
+    maxChunksFromTarget?: number;
+    maxSimilarDocs?: number;
+    taxonomy?: string;
+    isChatQuery?: boolean;
+  }
+): Promise<TargetJsonStructure | string> { // Return type can be string for chat
+  try {
+    // --- ADD LOG ---
+    console.log('[contractRagService] analyzeContractWithRAG called with options:', options);
+    console.log('[contractRagService] User Query:', userQuery);
+
+
+    await initializeVectorStore([]);
+
+    let specificContractContext = "";
+    let generalSimilarContext = "";
+    const {
+      targetContractId,
+      retrieveSimilarContext = true,
+      maxChunksFromTarget = 3,
+      maxSimilarDocs = 2,
+      taxonomy,
+      isChatQuery = false
+    } = options || {};
+
+    // ... (context retrieval logic - existing logs here are fine) ...
+
+    if (isChatQuery) {
+      const chatPrompt = `
+        You are an AI assistant discussing a contract previously analyzed.
+        The user's question is: "${userQuery}"
+        The contract context (which might be its full text or prior analysis summary) is:
+        \`\`\`text
+        ${contractTextToAnalyze} 
+        \`\`\`
+        ${specificContractContext}
+        ${generalSimilarContext}
+
+        Based on this, provide a concise answer to the user's question.
+        Answer:
+        `;
+      // --- ADD LOG ---
+      console.log('[contractRagService] Sending chat prompt to geminiService.');
+      const result = await getStructuredAnalysisFromGemini(chatPrompt, false); // expectJson is false
+      if (!result.success || typeof result.analysis !== 'string') {
+        throw new Error(result.error || "Failed to get chat response or response was not a string.");
+      }
+      // --- ADD LOG ---
+      console.log('[contractRagService] Received chat response from geminiService:', result.analysis);
+      return result.analysis;
+    }
+
+    const jsonSchemaForPrompt = `
+    { /* ... your detailed JSON schema ... */ }
+    `; // Keep your existing detailed schema here
+
+    const enhancedPromptForJson = `
+      You are an expert AI legal and procurement assistant...
+      ${taxonomy ? `The contract has been categorized by the user under the taxonomy: "${taxonomy}". ...` : "..."}
+      ...
+      ${jsonSchemaForPrompt}
+      JSON object:
+    `; // Keep your existing detailed prompt construction here
+
+    // --- ADD LOG ---
+    console.log('[contractRagService] Final enhancedPromptForJson for Gemini (structured analysis):', enhancedPromptForJson);
+
+    const result = await getStructuredAnalysisFromGemini(enhancedPromptForJson, true); // expectJson is true
+
+    if (!result.success || !result.analysis || typeof result.analysis === 'string') { // ensure analysis is not a string here
+      throw new Error(result.error || "Failed to get structured analysis or analysis was in wrong format.");
+    }
+    
+    const analysisResult = result.analysis as TargetJsonStructure;
+    if (!analysisResult.contractTaxonomy && taxonomy) {
+        analysisResult.contractTaxonomy = taxonomy;
+    }
+
+    // --- ADD LOG ---
+    console.log('[contractRagService] Raw structured analysis received from geminiService:', analysisResult);
+    return analysisResult;
+
+  } catch (error) {
+    // --- MODIFIED LOG ---
+    console.error('[contractRagService] Error in analyzeContractWithRAG (catch block):', error);
+    if (error instanceof Error) {
+        throw new Error(`RAG Analysis Failed in contractRagService: ${error.message}`);
+    }
+    throw new Error("An unknown error occurred during RAG analysis in contractRagService.");
+  }
+}
