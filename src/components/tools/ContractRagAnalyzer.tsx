@@ -985,5 +985,53 @@ const ContractRagAnalyzer: React.FC = () => {
     </div>
   );
 };
+// src/components/tools/rfp/ContractRagAnalyzer.tsx
+// ... (imports) ...
+
+// Inside the ContractRagAnalyzer component:
+
+// In the `handleAnalyze` function, after `setCurrentAnalysis(newUiAnalysis);`
+// and after `setAnalyses(...)`
+// ...
+    setCurrentAnalysis(newUiAnalysis);
+    // --- ADD LOG ---
+    console.log('[ContractRagAnalyzer] currentAnalysis object set in UI state:', newUiAnalysis);
+
+    setAnalyses(prev => { /* ... update analyses list ... */ });
+    setRawAnalysisText(JSON.stringify(structuredAnalysisResult, null, 2));
+// ...
+
+// In the `handleAnalyze` function's `catch` block:
+// ...
+  } catch (error) {
+    console.error('[ContractRagAnalyzer] Error in handleAnalyze (UI component):', error); // Already good
+    setUploadError(error instanceof Error ? error.message : "An unexpected error occurred during analysis.");
+    setCurrentContractId(null);
+  }
+// ...
+
+// In the `handleChatSubmit` function, after receiving the response:
+// ...
+    // const responseContent = (typeof assistantResponse === 'object' && assistantResponse.chatResponse) ? assistantResponse.chatResponse : assistantResponse;
+    // --- ADD LOG ---
+    console.log('[ContractRagAnalyzer] Chat response received for UI:', assistantResponse);
+    setChatMessages(prev => [...prev, { role: 'assistant', content: assistantResponse as string }]);
+// ...
+// And in its catch block:
+// ...
+  } catch (error) {
+    console.error("[ContractRagAnalyzer] Error processing chat (UI component):", error); // Already good
+    const chatErrorMsg = error instanceof Error ? error.message : "Sorry, I encountered an issue.";
+    setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${chatErrorMsg}` }]);
+  }
+// ...
+
+// In the `useEffect` for RAG initialization, in the `catch` block:
+// ...
+  } catch (error) {
+      console.error("[ContractRagAnalyzer] Failed to initialize RAG system (UI component):", error); // Already good
+      // ... (your existing error setting logic)
+  }
+// ...
 
 export default ContractRagAnalyzer;
