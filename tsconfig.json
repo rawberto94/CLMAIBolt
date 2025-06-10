@@ -5,3 +5,16 @@
     { "path": "./tsconfig.node.json" }
   ]
 }
+{
+  "compilerOptions": {
+    // ... leave your other options as they are ...
+
+    // ADD THE TWO LINES BELOW
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
