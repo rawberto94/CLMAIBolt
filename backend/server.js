@@ -63,9 +63,14 @@ app.use(express.json());
 // 4. Gemini API Client Setup
 // ==================================================================
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-// We are removing the explicit JSON mode and will rely on our robust parsing.
-// This can sometimes be more reliable than forcing the model's output type.
-const model = genAI.getGenerativeModel({ model: config.modelName });
+
+// Re-enabling JSON Mode. This is the most reliable way to get structured output.
+const model = genAI.getGenerativeModel({
+  model: config.modelName,
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+});
 
 const generationConfig = {
   temperature: 0.2,
@@ -73,10 +78,10 @@ const generationConfig = {
 };
 
 const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
 // ==================================================================
@@ -90,35 +95,10 @@ async function extractPdfText(buffer) {
   return data.text;
 }
 
-/**
- * Extracts a JSON object from a string that might contain extra text or markdown.
- * @param {string} text - The text from the AI's response.
- * @returns {string | null} The cleaned JSON string, or null if not found.
- */
-function extractJsonFromString(text) {
-  // Find the first '{' and the last '}' to isolate the JSON object.
-  const startIndex = text.indexOf('{');
-  const endIndex = text.lastIndexOf('}');
-  
-  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-    return null; // No valid JSON object markers found
-  }
-  
-  const jsonString = text.substring(startIndex, endIndex + 1);
-  
-  // A final check to ensure the extracted string is likely valid JSON
-  try {
-    JSON.parse(jsonString);
-    return jsonString;
-  } catch (error) {
-    return null; // The extracted string was not valid JSON
-  }
-}
-
 async function analyzeContractWithAI(contractText) {
   const prompt = `
     Analyze the following contract and return a structured JSON object.
-    The JSON object must strictly adhere to the schema provided below. Do not add any extra fields, comments, or markdown. Your entire response must be only the JSON object itself, starting with { and ending with }.
+    The JSON object must strictly adhere to the schema provided below. Do not add any extra fields, comments, or markdown. Your entire response must be only the JSON object itself.
     JSON SCHEMA:
     { "overview": { "title": "string", "type": "string", "status": "string", "parties": ["string"], "effectiveDate": "string (YYYY-MM-DD)", "expirationDate": "string (YYYY-MM-DD)", "totalValue": "string", "description": "string" }, "financials": { "totalValue": "number", "currency": "string (e.g., USD)", "paymentTerms": { "schedule": "string", "terms": "string", "latePaymentFee": "string", "earlyPaymentDiscount": "string" }, "rateCards": [{ "role": "string", "rate": "number", "unit": "string" }], "fees": [{ "type": "string", "description": "string", "cap": "string" }], "invoicingFrequency": "string", "budgetAllocation": { "year1": "number", "year2": "number", "year3": "number" } }, "obligations": { "deliverables": [{ "description": "string", "deadline": "string", "status": "'On Track' | 'At Risk' | 'Delayed'" }], "serviceLevel": { "availability": "string", "responseTime": { "critical": "string", "high": "string", "medium": "string", "low": "string" }, "penalties": "string" }, "reporting": { "frequency": "string", "contents": ["string"] }, "keyPersonnel": [{ "role": "string", "replaceability": "string" }] }, "risks": [{ "category": "string", "description": "string", "severity": "'High' | 'Medium' | 'Low'", "impact": "string", "mitigation": "string" }], "compliance": { "score": "number (1-100)", "requirements": [{ "category": "string", "status": "'Compliant' | 'Partial' | 'Non-Compliant'", "details": "string" }], "industryRegulations": [{ "name": "string", "status": "'Compliant' | 'At Risk' | 'Non-Compliant'", "details": "string" }] }, "recommendations": [{ "priority": "'High' | 'Medium' | 'Low'", "description": "string", "benefit": "string", "effort": "'High' | 'Medium' | 'Low'" }], "benchmarks": { "rateComparison": { "averageRate": "number", "marketAverage": "number", "percentile": "number" }, "termComparison": { "paymentTerms": { "contract": "string", "marketAverage": "string", "status": "string" }, "contractLength": { "contract": "string", "marketAverage": "string", "status": "string" }, "terminationNotice": { "contract": "string", "marketAverage": "string", "status": "string" } } } }
     CONTRACT TEXT:
@@ -136,15 +116,9 @@ async function analyzeContractWithAI(contractText) {
   const responseText = result.response.text();
   logger.info("Received raw response from Gemini.");
 
-  const jsonString = extractJsonFromString(responseText);
-  
-  if (!jsonString) {
-    logger.error({ rawResponse: responseText }, "Could not extract a valid JSON object from the AI's response.");
-    throw new Error("Failed to parse a valid JSON object from the AI's response.");
-  }
-
-  logger.info("Successfully extracted JSON. Parsing now.");
-  return JSON.parse(jsonString);
+  // Because we are using JSON mode, we can now trust the output and parse it directly.
+  // The complex 'extractJsonFromString' function is no longer needed.
+  return JSON.parse(responseText);
 }
 
 // ==================================================================
