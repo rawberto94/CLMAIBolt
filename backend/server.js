@@ -1,142 +1,226 @@
-// backend/server.js
+// backend/server.js - Advanced, Robust & Secure Version
 
+// ==================================================================
 // 1. Import Dependencies
+// ==================================================================
 const express = require('express');
 const multer = require('multer');
 const pdf = require('pdf-parse');
 const cors = require('cors');
-require('dotenv').config(); // Load environment variables from .env file
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const pino = require('pino');
+require('dotenv').config();
 
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 
-// 2. Initial Setup
-const app = express();
-const port = 4000;
-const upload = multer({ storage: multer.memoryStorage() }); // Store uploaded files in memory
-
-// 3. Configure Express App
-app.use(cors()); // Allows requests from any origin, which is suitable for development
-app.use(express.json());
-
-// 4. Configure Gemini Client
-const MODEL_NAME = "gemini-1.5-flash-latest"; // Corrected model name
-const API_KEY = process.env.GEMINI_API_KEY;
-
 // ==================================================================
-// DEBUGGING BLOCK: Check if the API Key is loaded correctly.
-// ==================================================================
-console.log(`Checking for API Key... Found: ${API_KEY ? 'Yes' : 'No'}`);
-if (!API_KEY) {
-  console.error("\nCRITICAL ERROR: GEMINI_API_KEY is not defined.");
-  console.error("Please ensure you have a .env file in the /backend folder with your key:\n");
-  console.error("Example .env file content:\nGEMINI_API_KEY=\"AIzaSy...\"\n");
-  process.exit(1); // Stop the server if the key is missing
-}
+// 2. Configuration & Initialization
 // ==================================================================
 
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({
-  model: MODEL_NAME,
-  // This enables JSON output mode, which is crucial for reliable results.
-  generationConfig: {
-    responseMimeType: "application/json",
+// Setup a structured logger. In production, you would write to a file.
+// For development, `pino-pretty` makes the logs human-readable.
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+      ignore: 'pid,hostname',
+    },
   },
 });
 
+// Centralized configuration from environment variables
+const config = {
+  port: process.env.PORT || 4000,
+  geminiApiKey: process.env.GEMINI_API_KEY,
+  modelName: 'gemini-1.5-flash-latest',
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173', // Default to your Vite dev server
+};
+
+// Validate critical configuration
+if (!config.geminiApiKey) {
+  logger.error("CRITICAL ERROR: GEMINI_API_KEY is not defined in the .env file.");
+  process.exit(1);
+}
+
+const app = express();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB file size limit
+});
+
+// ==================================================================
+// 3. Security & Middleware Setup
+// ==================================================================
+
+// Set security-related HTTP headers
+app.use(helmet());
+
+// Configure CORS to only allow requests from your frontend's domain
+const corsOptions = {
+  origin: config.corsOrigin,
+};
+app.use(cors(corsOptions));
+
+// Disable the 'x-powered-by' header to hide server technology
+app.disable('x-powered-by');
+
+// Apply rate limiting to all API requests
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again after 15 minutes.' },
+});
+app.use('/api', apiLimiter);
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// ==================================================================
+// 4. Gemini API Client Setup
+// ==================================================================
+const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+const model = genAI.getGenerativeModel({
+  model: config.modelName,
+  generationConfig: { responseMimeType: "application/json" },
+});
+
 const generationConfig = {
-  temperature: 0.2, // Lower temperature for more factual, less creative output
-  topK: 1,
-  topP: 1,
+  temperature: 0.2,
   maxOutputTokens: 8192,
 };
 
 const safetySettings = [
-  // You can adjust these safety settings as needed for your use case
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-// 5. Define the API Endpoint for Contract Analysis
-app.post('/api/analyze', upload.single('file'), async (req, res) => {
-  console.log("Received a request to /api/analyze");
+// ==================================================================
+// 5. Helper Functions (for modularity and testing)
+// ==================================================================
 
-  // --- Input Validation ---
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded.' });
+/**
+ * Extracts text content from a PDF buffer.
+ * @param {Buffer} buffer - The buffer containing the PDF file data.
+ * @returns {Promise<string>} The extracted text content.
+ */
+async function extractPdfText(buffer) {
+  const data = await pdf(buffer);
+  if (data.text.length < 100) {
+    throw new Error("Could not extract sufficient text. The PDF may be image-based or corrupt.");
   }
-  if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({ error: 'Only PDF files are supported at this time.'})
+  return data.text;
+}
+
+/**
+ * Constructs the prompt and calls the Gemini API.
+ * @param {string} contractText - The text of the contract to analyze.
+ * @returns {Promise<object>} The parsed JSON object from the AI's response.
+ */
+async function analyzeContractWithAI(contractText) {
+  const prompt = `
+    You are an expert legal and financial analyst. Analyze the following contract and return a structured JSON object.
+    The JSON object must strictly adhere to the schema provided below. Do not add any extra fields, comments, or markdown. Your entire response must be only the JSON object itself.
+    JSON SCHEMA:
+    { "overview": { "title": "string", "type": "string", "status": "string", "parties": ["string"], "effectiveDate": "string (YYYY-MM-DD)", "expirationDate": "string (YYYY-MM-DD)", "totalValue": "string", "description": "string" }, "financials": { "totalValue": "number", "currency": "string (e.g., USD)", "paymentTerms": { "schedule": "string", "terms": "string", "latePaymentFee": "string", "earlyPaymentDiscount": "string" }, "rateCards": [{ "role": "string", "rate": "number", "unit": "string" }], "fees": [{ "type": "string", "description": "string", "cap": "string" }], "invoicingFrequency": "string", "budgetAllocation": { "year1": "number", "year2": "number", "year3": "number" } }, "obligations": { "deliverables": [{ "description": "string", "deadline": "string", "status": "'On Track' | 'At Risk' | 'Delayed'" }], "serviceLevel": { "availability": "string", "responseTime": { "critical": "string", "high": "string", "medium": "string", "low": "string" }, "penalties": "string" }, "reporting": { "frequency": "string", "contents": ["string"] }, "keyPersonnel": [{ "role": "string", "replaceability": "string" }] }, "risks": [{ "category": "string", "description": "string", "severity": "'High' | 'Medium' | 'Low'", "impact": "string", "mitigation": "string" }], "compliance": { "score": "number (1-100)", "requirements": [{ "category": "string", "status": "'Compliant' | 'Partial' | 'Non-Compliant'", "details": "string" }], "industryRegulations": [{ "name": "string", "status": "'Compliant' | 'At Risk' | 'Non-Compliant'", "details": "string" }] }, "recommendations": [{ "priority": "'High' | 'Medium' | 'Low'", "description": "string", "benefit": "string", "effort": "'High' | 'Medium' | 'Low'" }], "benchmarks": { "rateComparison": { "averageRate": "number", "marketAverage": "number", "percentile": "number" }, "termComparison": { "paymentTerms": { "contract": "string", "marketAverage": "string", "status": "string" }, "contractLength": { "contract": "string", "marketAverage": "string", "status": "string" }, "terminationNotice": { "contract": "string", "marketAverage": "string", "status": "string" } } } }
+    CONTRACT TEXT:
+    ---
+    ${contractText}
+    ---
+  `;
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig,
+    safetySettings,
+  });
+
+  const responseText = result.response.text();
+
+  // Robust JSON parsing
+  const startIndex = responseText.indexOf('{');
+  const endIndex = responseText.lastIndexOf('}');
+  if (startIndex === -1 || endIndex === -1) {
+    logger.warn({ rawResponse: responseText }, "AI response did not contain a valid JSON object.");
+    throw new Error("Could not parse a valid JSON object from the AI's response.");
+  }
+  const jsonString = responseText.substring(startIndex, endIndex + 1);
+  return JSON.parse(jsonString);
+}
+
+// ==================================================================
+// 6. API Routes
+// ==================================================================
+
+// Health check endpoint for monitoring
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Main analysis endpoint
+app.post('/api/analyze', upload.single('file'), async (req, res, next) => {
+  const requestLog = logger.child({ requestId: Math.random().toString(36).substring(7) });
+  requestLog.info(`Received request to /api/analyze from IP: ${req.ip}`);
+
+  if (!req.file) {
+    requestLog.warn('Analysis request failed: No file uploaded.');
+    return res.status(400).json({ error: 'No file uploaded.' });
   }
 
   try {
-    // --- Text Extraction ---
-    console.log(`Extracting text from PDF: ${req.file.originalname}...`);
-    const pdfData = await pdf(req.file.buffer);
-    const contractText = pdfData.text;
-    console.log(`Extracted ${contractText.length} characters.`);
+    requestLog.info(`Extracting text from PDF: ${req.file.originalname}`);
+    const contractText = await extractPdfText(req.file.buffer);
+    requestLog.info(`Text extracted. Length: ${contractText.length}. Sending to AI.`);
 
-    if (contractText.length < 100) {
-        return res.status(400).json({ error: "Could not extract sufficient text from the PDF. It may be an image-only file."});
-    }
+    const analysisJson = await analyzeContractWithAI(contractText);
+    requestLog.info('Successfully received and parsed AI response.');
 
-    // --- Prompt Engineering for Gemini ---
-    console.log("Constructing prompt for Gemini...");
-    const prompt = `
-      You are an expert legal and financial analyst. Your task is to perform a comprehensive analysis of the following contract text and return a structured JSON object.
-      The JSON object must strictly adhere to the schema provided below. Do not add any extra fields, comments, or deviate from the specified data types.
-
-      CONTRACT TEXT TO ANALYZE:
-      ---
-      ${contractText}
-      ---
-
-      JSON SCHEMA FOR ANALYSIS:
-      {
-        "overview": { "title": "string", "type": "string", "status": "string", "parties": ["string"], "effectiveDate": "string (YYYY-MM-DD)", "expirationDate": "string (YYYY-MM-DD)", "totalValue": "string", "description": "string" },
-        "financials": { "totalValue": "number", "currency": "string (e.g., USD)", "paymentTerms": { "schedule": "string", "terms": "string", "latePaymentFee": "string", "earlyPaymentDiscount": "string" }, "rateCards": [{ "role": "string", "rate": "number", "unit": "string" }], "fees": [{ "type": "string", "description": "string", "cap": "string" }], "invoicingFrequency": "string", "budgetAllocation": { "year1": "number", "year2": "number", "year3": "number" } },
-        "obligations": { "deliverables": [{ "description": "string", "deadline": "string", "status": "'On Track' | 'At Risk' | 'Delayed'" }], "serviceLevel": { "availability": "string", "responseTime": { "critical": "string", "high": "string", "medium": "string", "low": "string" }, "penalties": "string" }, "reporting": { "frequency": "string", "contents": ["string"] }, "keyPersonnel": [{ "role": "string", "replaceability": "string" }] },
-        "risks": [{ "category": "string", "description": "string", "severity": "'High' | 'Medium' | 'Low'", "impact": "string", "mitigation": "string" }],
-        "compliance": { "score": "number (1-100)", "requirements": [{ "category": "string", "status": "'Compliant' | 'Partial' | 'Non-Compliant'", "details": "string" }], "industryRegulations": [{ "name": "string", "status": "'Compliant' | 'At Risk' | 'Non-Compliant'", "details": "string" }] },
-        "recommendations": [{ "priority": "'High' | 'Medium' | 'Low'", "description": "string", "benefit": "string", "effort": "'High' | 'Medium' | 'Low'" }],
-        "benchmarks": { "rateComparison": { "averageRate": "number", "marketAverage": "number", "percentile": "number" }, "termComparison": { "paymentTerms": { "contract": "string", "marketAverage": "string", "status": "string" }, "contractLength": { "contract": "string", "marketAverage": "string", "status": "string" }, "terminationNotice": { "contract": "string", "marketAverage": "string", "status": "string" } } }
-      }
-    `;
-
-    // --- Calling the Gemini API ---
-    console.log("Sending request to Gemini API...");
-    const parts = [{ text: prompt }];
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts }],
-      generationConfig,
-      safetySettings,
-    });
-
-    const responseText = result.response.text();
-    
-    // ==================================================================
-    // ADDED FOR DEBUGGING: Log the raw response from the AI
-    // ==================================================================
-    console.log("--- START OF RAW GEMINI RESPONSE ---");
-    console.log(responseText);
-    console.log("--- END OF RAW GEMINI RESPONSE ---");
-    
-    // Clean the response text to remove markdown wrappers, if they exist
-    const cleanedText = responseText.replace(/^```json\s*/, '').replace(/```$/, '');
-    
-    // Parse the cleaned JSON text and send it to the frontend
-    const analysisJson = JSON.parse(cleanedText);
     res.status(200).json(analysisJson);
-
   } catch (error) {
-    console.error("Error during analysis:", error);
-    res.status(500).json({ error: 'An internal server error occurred while analyzing the contract.' });
+    requestLog.error({ err: error }, 'An error occurred during the analysis pipeline.');
+    // Pass the error to the global error handler
+    next(error);
   }
 });
 
+// ==================================================================
+// 7. Error Handling & Server Startup
+// ==================================================================
 
-// 6. Start the Server
-app.listen(port, () => {
-  console.log(`Backend server listening at http://localhost:${port}`);
+// Global error handling middleware. All `next(error)` calls end up here.
+app.use((err, req, res, next) => {
+  logger.error({
+    err: {
+      message: err.message,
+      stack: err.stack,
+    },
+    req: {
+      method: req.method,
+      url: req.originalUrl,
+    },
+  }, 'Unhandled error occurred');
+
+  res.status(500).json({ error: 'An internal server error occurred.' });
 });
+
+const server = app.listen(config.port, () => {
+  logger.info(`Backend server listening at http://localhost:${config.port}`);
+});
+
+// Graceful shutdown logic
+const cleanup = (signal) => {
+  logger.info(`Received ${signal}. Shutting down gracefully...`);
+  server.close(() => {
+    logger.info('Server closed. Exiting.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
