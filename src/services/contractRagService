@@ -1,7 +1,7 @@
 // src/services/contractRagService.ts
 // This is the CORRECTED service file. It has NO "langchain" imports.
 
-import { AnalysisResult, AnalysisProgress } from '../types';
+import { AnalysisResult, AnalysisProgress } from '@/types';
 
 // This is the main function your UI will call.
 // It prepares data and calls a backend API (which is currently mocked).
