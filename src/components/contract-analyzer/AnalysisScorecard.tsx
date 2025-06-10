@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
-import { AnalysisResult } from '@/types';
+import { AnalysisResult } from '../../types';
 
 interface GaugeProps {
   score: number;
