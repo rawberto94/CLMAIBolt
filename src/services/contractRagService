@@ -2,10 +2,13 @@
 
 import { AnalysisResult, AnalysisProgress } from '../types';
 
+// We've defined the type for the onProgress function separately for clarity.
+type ProgressCallback = (progress: AnalysisProgress) => void;
+
 export const handleAnalysisRequest = async (
     file: File,
     taxonomy: string,
-    onProgress: (progress: AnalysisProgress) => void
+    onProgress: ProgressCallback
 ): Promise<AnalysisResult> => {
 
     console.log("Frontend service started...");
