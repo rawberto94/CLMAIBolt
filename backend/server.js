@@ -1,4 +1,4 @@
-// backend/server.js - Final Robust Version with Forced JSON Mode
+// backend/server.js - Final Robust Version with Flexible Schema
 
 // ==================================================================
 // 1. Import Dependencies
@@ -63,13 +63,9 @@ app.use(express.json());
 // 4. Gemini API Client Setup
 // ==================================================================
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-// Re-enabling JSON Mode. This is the most reliable way to get structured output.
-const model = genAI.getGenerativeModel({
-  model: config.modelName,
-  generationConfig: {
-    responseMimeType: "application/json",
-  },
-});
+// We are removing explicit JSON mode to rely on our more robust parser,
+// as the model sometimes fails to adhere to it perfectly.
+const model = genAI.getGenerativeModel({ model: config.modelName });
 
 const generationConfig = {
   temperature: 0.2,
@@ -94,13 +90,39 @@ async function extractPdfText(buffer) {
   return data.text;
 }
 
+/**
+ * [DEFINITIVE VERSION] Extracts a JSON object from a string that might be wrapped in markdown or have extra text.
+ * @param {string} text - The text from the AI's response.
+ * @returns {string | null} The cleaned JSON string, or null if no valid object is found.
+ */
+function extractJsonFromString(text) {
+  // Use a regular expression to find the JSON block. This is more robust.
+  const jsonRegex = /\{[\s\S]*\}/;
+  const match = text.match(jsonRegex);
+
+  if (match && match[0]) {
+    // Before returning, ensure the extracted string is actually valid JSON
+    try {
+      JSON.parse(match[0]);
+      return match[0];
+    } catch (error) {
+      logger.error({ jsonParseError: error.message }, "Extracted string is not valid JSON.");
+      return null;
+    }
+  }
+  return null;
+}
+
 async function analyzeContractWithAI(contractText) {
   const prompt = `
     Analyze the following contract and return a structured JSON object.
     Your entire response must contain only the JSON object itself, starting with { and ending with }.
-    Do not include any other text, comments, or markdown formatting.
+    All fields in the JSON schema are optional. If you cannot find information for a specific field,
+    OMIT THE FIELD ENTIRELY from the response. Do not invent data or return empty strings for missing information.
+
     JSON SCHEMA:
     { "overview": { "title": "string", "type": "string", "status": "string", "parties": ["string"], "effectiveDate": "string (YYYY-MM-DD)", "expirationDate": "string (YYYY-MM-DD)", "totalValue": "string", "description": "string" }, "financials": { "totalValue": "number", "currency": "string (e.g., USD)", "paymentTerms": { "schedule": "string", "terms": "string", "latePaymentFee": "string", "earlyPaymentDiscount": "string" }, "rateCards": [{ "role": "string", "rate": "number", "unit": "string" }], "fees": [{ "type": "string", "description": "string", "cap": "string" }], "invoicingFrequency": "string", "budgetAllocation": { "year1": "number", "year2": "number", "year3": "number" } }, "obligations": { "deliverables": [{ "description": "string", "deadline": "string", "status": "'On Track' | 'At Risk' | 'Delayed'" }], "serviceLevel": { "availability": "string", "responseTime": { "critical": "string", "high": "string", "medium": "string", "low": "string" }, "penalties": "string" }, "reporting": { "frequency": "string", "contents": ["string"] }, "keyPersonnel": [{ "role": "string", "replaceability": "string" }] }, "risks": [{ "category": "string", "description": "string", "severity": "'High' | 'Medium' | 'Low'", "impact": "string", "mitigation": "string" }], "compliance": { "score": "number (1-100)", "requirements": [{ "category": "string", "status": "'Compliant' | 'Partial' | 'Non-Compliant'", "details": "string" }], "industryRegulations": [{ "name": "string", "status": "'Compliant' | 'At Risk' | 'Non-Compliant'", "details": "string" }] }, "recommendations": [{ "priority": "'High' | 'Medium' | 'Low'", "description": "string", "benefit": "string", "effort": "'High' | 'Medium' | 'Low'" }], "benchmarks": { "rateComparison": { "averageRate": "number", "marketAverage": "number", "percentile": "number" }, "termComparison": { "paymentTerms": { "contract": "string", "marketAverage": "string", "status": "string" }, "contractLength": { "contract": "string", "marketAverage": "string", "status": "string" }, "terminationNotice": { "contract": "string", "marketAverage": "string", "status": "string" } } } }
+
     CONTRACT TEXT:
     ---
     ${contractText}
@@ -116,9 +138,15 @@ async function analyzeContractWithAI(contractText) {
   const responseText = result.response.text();
   logger.info("Received raw response from Gemini.");
 
-  // Because we have forced JSON output mode, we can now parse the text directly.
-  // The manual cleaning functions are no longer needed.
-  return JSON.parse(responseText);
+  const jsonString = extractJsonFromString(responseText);
+  
+  if (!jsonString) {
+    logger.error({ rawResponse: responseText }, "Could not extract a valid JSON object from the AI's response.");
+    throw new Error("Failed to extract a valid JSON object from the AI's response.");
+  }
+  
+  logger.info("Successfully extracted JSON string. Parsing now.");
+  return JSON.parse(jsonString);
 }
 
 // ==================================================================
@@ -174,3 +202,4 @@ const cleanup = (signal) => {
 
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
+
