@@ -19,7 +19,7 @@ app.use(cors()); // Allows requests from any origin, which is suitable for devel
 app.use(express.json());
 
 // 4. Configure Gemini Client
-const MODEL_NAME = "gemini-1.5-flash-latest"; // Updated to use Gemini 1.5 Flash
+const MODEL_NAME = "gemini-1.5-flash-latest"; // Corrected model name
 const API_KEY = process.env.GEMINI_API_KEY;
 
 // ==================================================================
@@ -116,13 +116,19 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
 
     const responseText = result.response.text();
     console.log("Received response from Gemini.");
+
+    // ==================================================================
+    // THIS IS THE FIX
+    // Clean the response text to remove the Markdown wrapper before parsing.
+    // ==================================================================
+    const cleanedText = responseText.replace(/^```json\s*/, '').replace(/```$/, '');
     
-    // Parse the JSON text from the AI's response and send it to the frontend
-    const analysisJson = JSON.parse(responseText);
+    // Parse the cleaned JSON text and send it to the frontend
+    const analysisJson = JSON.parse(cleanedText);
     res.status(200).json(analysisJson);
 
   } catch (error) {
-    // This will catch errors from the Gemini API (like an invalid key) or JSON parsing
+    // This will catch errors from the Gemini API or JSON parsing
     console.error("Error during analysis:", error);
     res.status(500).json({ error: 'An internal server error occurred while analyzing the contract.' });
   }
