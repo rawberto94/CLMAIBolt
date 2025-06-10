@@ -1,7 +1,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 // Corrected relative paths
-import { AnalysisProvider, useAnalysisContext } from '../../context/AnalysisContext';
+import { AnalysisProvider, useAnalysisContext } from "../../contexts/AnalysisContext";
 import { initializeContractRAG } from '../../services/contractRagService';
 import { FileUpload } from '../contract-analyzer/FileUpload';
 import { AnalysisDisplay } from '../contract-analyzer/AnalysisDisplay';
