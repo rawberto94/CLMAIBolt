@@ -1,20 +1,23 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { FileSearch, CheckCircle, RefreshCw, AlertTriangle, X, Plus, Settings } from 'lucide-react';
 import { AnalysisProvider, useAnalysisContext } from '@/context/AnalysisContext';
 import { initializeContractRAG } from '@/services/contractRagService';
-import { FileUpload } from './FileUpload'; // Assuming FileUpload is also in this folder
-import { AnalysisDisplay } from './AnalysisDisplay'; // Assuming AnalysisDisplay is here too
-import { TABS } from './tabsConfig'; // Assuming tabsConfig is also here
 
-// If your other components are in a different folder, we'll need to adjust the paths above.
-// For now, let's assume they will also live inside 'src/components/documents/'
+// ==================================================================
+// These import paths have been corrected
+// ==================================================================
+import { FileUpload } from '../contract-analyzer/FileUpload';
+import { AnalysisDisplay } from '../contract-analyzer/AnalysisDisplay';
+// ==================================================================
+
+
+// Import necessary icons
+import { FileSearch, CheckCircle, RefreshCw, AlertTriangle, X, Plus, Settings } from 'lucide-react';
 
 const MainLayout = () => {
-    const { activeTab, setActiveTab, currentAnalysis, uploadError, setUploadError, resetStateForNewAnalysis } = useAnalysisContext();
+    const { currentAnalysis, uploadError, setUploadError, resetStateForNewAnalysis } = useAnalysisContext();
     const [isInitializing, setIsInitializing] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false); // State for settings modal
 
     useEffect(() => {
         const init = async () => {
@@ -31,42 +34,35 @@ const MainLayout = () => {
         init();
     }, [setUploadError]);
 
-    const renderTabContent = () => {
-        if (activeTab === 'analyze') {
-            return currentAnalysis ? <AnalysisDisplay /> : <FileUpload />;
-        }
-        // Add placeholders for other tabs as needed
-        return <p>Select a tab</p>;
-    };
-
     return (
-        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6">
-            <div className="bg-white rounded-lg shadow-lg min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto p-4 sm:p-6">
+            <div className="bg-white rounded-xl shadow-lg min-h-[80vh]">
                 <header className="p-4 sm:p-6 border-b border-gray-200">
                      <div className="flex items-center justify-between">
-                        <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
-                            <FileSearch className="h-6 w-6 text-blue-600" /> AI Contract Analyzer
+                        <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
+                            <FileSearch className="h-7 w-7 text-blue-600" />
+                            <span>AI Contract Analyzer</span>
                         </h2>
                         <div className="flex items-center gap-3">
-                            {isInitializing && <span className="flex items-center gap-1 text-sm text-blue-600 animate-pulse"><RefreshCw className="h-4 w-4 animate-spin" />Initializing...</span>}
-                            {isInitialized && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle className="h-4 w-4" />System Ready</span>}
-                            {/* We can add the SettingsModal logic back here if needed */}
-                            <button className="p-2 text-gray-500 hover:text-gray-700"><Settings className="h-5 w-5" /></button>
+                            {isInitializing && <span className="flex items-center gap-1.5 text-sm text-gray-500"><RefreshCw className="h-4 w-4 animate-spin" />Initializing...</span>}
+                            {isInitialized && <span className="flex items-center gap-1.5 text-sm text-green-600"><CheckCircle className="h-4 w-4" />System Ready</span>}
                         </div>
                     </div>
                 </header>
 
-                <nav className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
-                    {/* Placeholder for TABS logic */}
-                </nav>
-
                 <main className="p-4 sm:p-6">
                     {uploadError && (
-                         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                           <p className="font-medium text-red-700">{uploadError}</p>
+                         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700">
+                           <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                           <div className="flex-1">
+                             <p className="font-medium">An Error Occurred</p>
+                             <p className="text-sm mt-1">{uploadError}</p>
+                           </div>
+                           <button onClick={() => setUploadError(null)} className="p-1 hover:bg-red-100 rounded-full -m-1"><X className="h-4 w-4" /></button>
                          </div>
                     )}
-                    {renderTabContent()}
+                    
+                    {currentAnalysis ? <AnalysisDisplay /> : <FileUpload />}
                 </main>
             </div>
 
@@ -83,7 +79,7 @@ const MainLayout = () => {
     );
 };
 
-// Main component to be exported
+// Main component that wraps everything in the context provider
 const ContractAnalyzer = () => (
     <AnalysisProvider>
         <MainLayout />
