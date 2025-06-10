@@ -1,4 +1,4 @@
-// backend/server.js - Final Robust Version with Flexible Schema
+// backend/server.js - Final Version with Forced JSON Mode
 
 // ==================================================================
 // 1. Import Dependencies
@@ -63,9 +63,13 @@ app.use(express.json());
 // 4. Gemini API Client Setup
 // ==================================================================
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-// We are removing explicit JSON mode to rely on our more robust parser,
-// as the model sometimes fails to adhere to it perfectly.
-const model = genAI.getGenerativeModel({ model: config.modelName });
+// Re-enabling JSON Mode. This is the most reliable way to get structured output.
+const model = genAI.getGenerativeModel({
+  model: config.modelName,
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+});
 
 const generationConfig = {
   temperature: 0.2,
@@ -88,29 +92,6 @@ async function extractPdfText(buffer) {
     throw new Error("Could not extract sufficient text from the PDF.");
   }
   return data.text;
-}
-
-/**
- * [DEFINITIVE VERSION] Extracts a JSON object from a string that might be wrapped in markdown or have extra text.
- * @param {string} text - The text from the AI's response.
- * @returns {string | null} The cleaned JSON string, or null if no valid object is found.
- */
-function extractJsonFromString(text) {
-  // Use a regular expression to find the JSON block. This is more robust.
-  const jsonRegex = /\{[\s\S]*\}/;
-  const match = text.match(jsonRegex);
-
-  if (match && match[0]) {
-    // Before returning, ensure the extracted string is actually valid JSON
-    try {
-      JSON.parse(match[0]);
-      return match[0];
-    } catch (error) {
-      logger.error({ jsonParseError: error.message }, "Extracted string is not valid JSON.");
-      return null;
-    }
-  }
-  return null;
 }
 
 async function analyzeContractWithAI(contractText) {
@@ -138,15 +119,9 @@ async function analyzeContractWithAI(contractText) {
   const responseText = result.response.text();
   logger.info("Received raw response from Gemini.");
 
-  const jsonString = extractJsonFromString(responseText);
-  
-  if (!jsonString) {
-    logger.error({ rawResponse: responseText }, "Could not extract a valid JSON object from the AI's response.");
-    throw new Error("Failed to extract a valid JSON object from the AI's response.");
-  }
-  
-  logger.info("Successfully extracted JSON string. Parsing now.");
-  return JSON.parse(jsonString);
+  // Because we have forced JSON output mode, we can now trust the output is clean
+  // and parse it directly. The manual 'extractJsonFromString' function is no longer needed.
+  return JSON.parse(responseText);
 }
 
 // ==================================================================
@@ -202,4 +177,3 @@ const cleanup = (signal) => {
 
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
-
