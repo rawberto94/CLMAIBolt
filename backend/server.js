@@ -19,7 +19,7 @@ app.use(cors()); // Allows requests from any origin, which is suitable for devel
 app.use(express.json());
 
 // 4. Configure Gemini Client
-const MODEL_NAME = "gemini-2.5-flash"; // Updated to use Gemini 1.5 Flash
+const MODEL_NAME = "gemini-1.5-flash-latest"; // Updated to use Gemini 1.5 Flash
 const API_KEY = process.env.GEMINI_API_KEY;
 
 // ==================================================================
