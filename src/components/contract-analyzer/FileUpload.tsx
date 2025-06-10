@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Sparkles, Loader2 } from 'lucide-react';
-import { useAnalysisContext } from '../../context/AnalysisContext';
+import { useAnalysisContext } from '../../contexts/AnalysisContext';
 import { handleAnalysisRequest } from '../../services/contractRagService';
 import { AnalysisProgress } from '../../types';
 
