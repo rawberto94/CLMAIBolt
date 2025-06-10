@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Sparkles, Loader2 } from 'lucide-react';
-import { useAnalysisContext } from '@/context/AnalysisContext';
-import { handleAnalysisRequest } from '@/services/contractRagService';
-import { AnalysisProgress } from '@/types';
+import { useAnalysisContext } from '../../context/AnalysisContext';
+import { handleAnalysisRequest } from '../../services/contractRagService';
+import { AnalysisProgress } from '../../types';
 
 export const FileUpload = () => {
     const { setIsAnalyzing, setUploadError, setCurrentAnalysis, setAnalyses, isAnalyzing } = useAnalysisContext();
