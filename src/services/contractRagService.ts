@@ -1,9 +1,57 @@
-// src/services/contractRagService.ts
+import { AnalysisResult, AnalysisProgress } from '../types';
 
-// Ensure you have a file at ../types/index.ts that exports these types
-import { AnalysisResult, AnalysisProgress } from '../types/index.ts';
+// This function now generates mock data matching the new detailed structure
+const generateMockAnalysis = (fileName: string, taxonomy: string): AnalysisResult => {
+  return {
+    overview: {
+      title: fileName,
+      type: taxonomy,
+      status: "Active",
+      parties: ["Your Company", "Vendor Inc."],
+      effectiveDate: "2025-01-01",
+      expirationDate: "2027-12-31",
+      totalValue: "$1,250,000",
+      description: "This Master Service Agreement (MSA) establishes the terms under which Vendor Inc. will provide services to Your Company."
+    },
+    financials: {
+      totalValue: 1250000,
+      currency: "USD",
+      paymentTerms: { schedule: "Monthly", terms: "Net 45", latePaymentFee: "1.5% monthly", earlyPaymentDiscount: "2% if paid within 15 days" },
+      rateCards: [ { role: "Senior Developer", rate: 150, unit: "hourly" }, { role: "Project Manager", rate: 175, unit: "hourly" }],
+      fees: [{ type: "Travel Expenses", description: "Billed at cost", cap: "Not to exceed 15% of monthly fees" }],
+      invoicingFrequency: "Monthly",
+      budgetAllocation: { year1: 400000, year2: 425000, year3: 425000 }
+    },
+    obligations: {
+      deliverables: [ { description: "Initial Assessment Report", deadline: "30 days after effective date", status: "At Risk" }, { description: "Phase 1 Implementation", deadline: "Q2 2025", status: "On Track" } ],
+      serviceLevel: { availability: "99.9%", responseTime: { critical: "1 hour", high: "4 hours", medium: "8 hours", low: "24 hours" }, penalties: "2% service credit" },
+      reporting: { frequency: "Monthly", contents: ["Service level performance", "Project status", "Budget utilization"] },
+      keyPersonnel: [{ role: "Project Manager", replaceability: "With client approval" }]
+    },
+    risks: [
+      { category: "Financial", description: "Payment terms (Net 45) exceed industry standard (Net 30)", severity: "Medium", impact: "Potential cash flow issues", mitigation: "Monitor accounts receivable closely" },
+      { category: "Compliance", description: "Data protection provisions may not fully address GDPR requirements", severity: "High", impact: "Potential regulatory non-compliance", mitigation: "Immediate review by privacy counsel" }
+    ],
+    compliance: {
+      score: 78,
+      requirements: [ { category: "Data Protection", status: "Partial", details: "GDPR provisions incomplete" }, { category: "Intellectual Property", status: "Compliant", details: "Clear ownership provisions" } ],
+      industryRegulations: [ { name: "GDPR", status: "At Risk", details: "Missing specific data subject rights provisions" } ]
+    },
+    recommendations: [
+      { priority: "High", description: "Amend data protection provisions to fully address GDPR", benefit: "Mitigate compliance risk", effort: "Medium" },
+      { priority: "Medium", description: "Renegotiate payment terms to Net 30", benefit: "Improve cash flow", effort: "Low" }
+    ],
+    benchmarks: {
+      rateComparison: { averageRate: 162.5, marketAverage: 155, percentile: 65 },
+      termComparison: {
+        paymentTerms: { contract: "Net 45", marketAverage: "Net 30", status: "Above Average (Unfavorable)" },
+        contractLength: { contract: "36 months", marketAverage: "24 months", status: "Above Average (Favorable)" },
+        terminationNotice: { contract: "60 days", marketAverage: "45 days", status: "Above Average (Favorable)" }
+      }
+    }
+  };
+};
 
-// We define the type for the onProgress function separately for stability.
 type ProgressCallback = (progress: AnalysisProgress) => void;
 
 export const handleAnalysisRequest = async (
@@ -11,54 +59,21 @@ export const handleAnalysisRequest = async (
     taxonomy: string,
     onProgress: ProgressCallback
 ): Promise<AnalysisResult> => {
-
     console.log("Frontend service started...");
-    onProgress({ status: 'extracting_text', percentage: 10 });
+    onProgress({ status: 'uploading', percentage: 25 });
+    
+    // In a real app, this is where you would make the API call to your Gemini backend.
+    // The backend would do the RAG and return the JSON.
+    // For now, we simulate that process.
+    await new Promise(res => setTimeout(res, 1000));
+    onProgress({ status: 'analyzing', percentage: 75 });
+    await new Promise(res => setTimeout(res, 2000));
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('taxonomy', taxonomy);
-
-    try {
-        console.log("Simulating API call to the backend server...");
-        await new Promise(res => setTimeout(res, 1000));
-        onProgress({ status: 'indexing', percentage: 50 });
-        await new Promise(res => setTimeout(res, 2000));
-        onProgress({ status: 'generating_summary', percentage: 80 });
-
-        const mockAnalysisResult: AnalysisResult = {
-             id: `contract_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`,
-             fileName: file.name,
-             timestamp: new Date().toISOString(),
-             summary: `This is a mock summary for the ${taxonomy} contract. The backend would generate a real one.`,
-             metadata: {
-                contractType: taxonomy,
-                parties: ["Mock Party A", "Mock Party B"],
-                effectiveDate: "2025-01-01",
-                expirationDate: "2026-01-01",
-                value: "100,000 USD",
-                jurisdiction: "State of New York, USA",
-             },
-             score: { overall: 85, risk: 15, compliance: 90, clarity: 88 },
-             risks: [{ level: 'medium', description: 'This is a mock risk from the backend.', mitigation: 'Review auto-renewal terms.' }],
-             recommendations: ["Consider adding a specific force majeure clause for pandemics."],
-             keyFindings: [{ type: "payment", label: "Payment Terms", value: "Net 30", risk: 'low' }],
-             obligations: [{id: 'obli-1', description: 'Submit quarterly reports', responsible: 'Party A', status: 'pending'}],
-             clauses: [],
-             insights: ["The liability cap is standard for an agreement of this type."],
-             financials: { totalContractValue: "100,000" },
-             version: 1,
-             benchmarkingNotes: []
-        };
-
-        onProgress({ status: 'complete', percentage: 100 });
-        return mockAnalysisResult;
-
-    } catch (error) {
-        console.error("Error during API call simulation:", error);
-        onProgress({ status: 'error', percentage: 100 });
-        throw error;
-    }
+    // We now return the new, detailed mock data structure.
+    const result = generateMockAnalysis(file.name, taxonomy);
+    
+    onProgress({ status: 'complete', percentage: 100 });
+    return result;
 };
 
 export const initializeContractRAG = async () => {
