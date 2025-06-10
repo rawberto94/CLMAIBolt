@@ -1,4 +1,4 @@
-// backend/server.js - Final Robust Version
+// backend/server.js - Final Robust Version with Forced JSON Mode
 
 // ==================================================================
 // 1. Import Dependencies
@@ -63,8 +63,13 @@ app.use(express.json());
 // 4. Gemini API Client Setup
 // ==================================================================
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-// We are removing the explicit JSON mode to rely on our more robust parser.
-const model = genAI.getGenerativeModel({ model: config.modelName });
+// Re-enabling JSON Mode. This is the most reliable way to get structured output.
+const model = genAI.getGenerativeModel({
+  model: config.modelName,
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+});
 
 const generationConfig = {
   temperature: 0.2,
@@ -89,24 +94,6 @@ async function extractPdfText(buffer) {
   return data.text;
 }
 
-/**
- * [FINAL VERSION] Extracts a JSON object from a string that might contain extra text or markdown.
- * It finds the first '{' and the last '}' to isolate the JSON object.
- * @param {string} text - The text from the AI's response.
- * @returns {string | null} The cleaned JSON string, or null if no valid object is found.
- */
-function extractJsonFromString(text) {
-  const startIndex = text.indexOf('{');
-  const endIndex = text.lastIndexOf('}');
-  
-  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-    logger.error({ rawResponse: text }, "Could not find starting '{' or ending '}' in the response.");
-    return null;
-  }
-  
-  return text.substring(startIndex, endIndex + 1);
-}
-
 async function analyzeContractWithAI(contractText) {
   const prompt = `
     Analyze the following contract and return a structured JSON object.
@@ -129,14 +116,9 @@ async function analyzeContractWithAI(contractText) {
   const responseText = result.response.text();
   logger.info("Received raw response from Gemini.");
 
-  const jsonString = extractJsonFromString(responseText);
-  
-  if (!jsonString) {
-    throw new Error("Failed to extract a valid JSON object from the AI's response.");
-  }
-  
-  logger.info("Successfully extracted JSON string. Parsing now.");
-  return JSON.parse(jsonString);
+  // Because we have forced JSON output mode, we can now parse the text directly.
+  // The manual cleaning functions are no longer needed.
+  return JSON.parse(responseText);
 }
 
 // ==================================================================
