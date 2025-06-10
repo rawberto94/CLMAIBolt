@@ -1,8 +1,9 @@
 // src/services/contractRagService.ts
 
-import { AnalysisResult, AnalysisProgress } from '../types';
+// Ensure you have a file at ../types/index.ts that exports these types
+import { AnalysisResult, AnalysisProgress } from '../types/index.ts';
 
-// We've defined the type for the onProgress function separately for clarity.
+// We define the type for the onProgress function separately for stability.
 type ProgressCallback = (progress: AnalysisProgress) => void;
 
 export const handleAnalysisRequest = async (
