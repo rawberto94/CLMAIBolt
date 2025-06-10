@@ -151,6 +151,12 @@ async function analyzeContractWithAI(contractText) {
     throw new Error("Could not parse a valid JSON object from the AI's response.");
   }
   const jsonString = responseText.substring(startIndex, endIndex + 1);
+  
+  // ==================================================================
+  // DEBUGGING: Log the exact string we are about to parse.
+  // ==================================================================
+  logger.info({ jsonStringToParse: jsonString }, "Attempting to parse the final JSON string.");
+
   return JSON.parse(jsonString);
 }
 
