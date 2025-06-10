@@ -10,22 +10,21 @@ import ToolsPage from './components/tools/ToolsPage';
 import SuppliersPage from './components/suppliers/SuppliersPage';
 import { useLocation } from './contexts/LocationContext';
 
+// STEP 1: Import our new component
+import ContractAnalyzer from './components/documents/ContractAnalyzer';
+
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const { updateLocation } = useLocation();
 
-  // Use hash-based routing
+  // Your hash-based routing logic (no changes needed here)
   React.useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'dashboard';
       setCurrentPage(hash);
       updateLocation(hash);
     };
-
-    // Set initial page based on hash
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
@@ -36,16 +35,12 @@ function App() {
     const parts = currentPage.split('/');
     const mainRoute = parts[0];
     const subRoute = parts[1];
-    const projectId = parts[3]; // Get project ID from URL if present
+    const projectId = parts[3];
 
     switch (mainRoute) {
       case 'dashboard':
         return <DashboardPage />;
       case 'contracts':
-        if (subRoute === 'view') {
-          const contractId = parts[2];
-          return <ContractDetailsView contractId={contractId} />;
-        }
         if (subRoute === 'view') {
           const contractId = parts[2];
           return <ContractDetailsView contractId={contractId} />;
@@ -61,10 +56,14 @@ function App() {
       case 'suppliers':
         return <SuppliersPage />;
       case 'tools':
+        // STEP 2: Add the logic to show the Contract Analyzer
+        if (subRoute === 'contract-analyzer') {
+          return <ContractAnalyzer />;
+        }
         if (subRoute === 'evaluation' && projectId) {
           return <ProjectEvaluation projectId={projectId} />;
         }
-        return <ToolsPage />;
+        return <ToolsPage />; // This is the default for the /tools route
       default:
         return <DashboardPage />;
     }
