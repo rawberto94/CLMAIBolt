@@ -83,7 +83,6 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
 
     // --- Prompt Engineering for Gemini ---
     console.log("Constructing prompt for Gemini...");
-    // This detailed prompt guides the AI to produce the exact JSON structure we need.
     const prompt = `
       You are an expert legal and financial analyst. Your task is to perform a comprehensive analysis of the following contract text and return a structured JSON object.
       The JSON object must strictly adhere to the schema provided below. Do not add any extra fields, comments, or deviate from the specified data types.
@@ -115,12 +114,15 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
     });
 
     const responseText = result.response.text();
-    console.log("Received response from Gemini.");
-
+    
     // ==================================================================
-    // THIS IS THE FIX
-    // Clean the response text to remove the Markdown wrapper before parsing.
+    // ADDED FOR DEBUGGING: Log the raw response from the AI
     // ==================================================================
+    console.log("--- START OF RAW GEMINI RESPONSE ---");
+    console.log(responseText);
+    console.log("--- END OF RAW GEMINI RESPONSE ---");
+    
+    // Clean the response text to remove markdown wrappers, if they exist
     const cleanedText = responseText.replace(/^```json\s*/, '').replace(/```$/, '');
     
     // Parse the cleaned JSON text and send it to the frontend
@@ -128,7 +130,6 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
     res.status(200).json(analysisJson);
 
   } catch (error) {
-    // This will catch errors from the Gemini API or JSON parsing
     console.error("Error during analysis:", error);
     res.status(500).json({ error: 'An internal server error occurred while analyzing the contract.' });
   }
