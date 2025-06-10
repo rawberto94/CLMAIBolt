@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAnalysisContext } from '../../context/AnalysisContext';
+import { useAnalysisContext } from '../../contexts/AnalysisContext';
 import { AnalysisScorecard } from './AnalysisScorecard';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 
