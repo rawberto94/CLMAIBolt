@@ -17,7 +17,7 @@ if (!apiKey) {
 }
 
 const client = new GoogleGenerativeAI(apiKey);
-const modelName = 'gemini-1.5-pro-latest';
+const modelName = 'gemini-1.5-flash';
 
 // Contract analysis prompt template that matches your AnalysisResult structure
 const createContractAnalysisPrompt = (contractText: string, taxonomy: string = 'standard'): string => {
