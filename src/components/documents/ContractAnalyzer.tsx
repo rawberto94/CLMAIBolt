@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 // Corrected relative paths below
 import { AnalysisProvider, useAnalysisContext } from '../../contexts/AnalysisContext';
-import { initializeContractRAG } from '../../services/contractRagService';
+import { checkAIServiceHealth } from '../../services/aiService';
 import { FileUpload } from '../contract-analyzer/FileUpload';
 import { AnalysisDisplay } from '../contract-analyzer/AnalysisDisplay';
 // Icons
@@ -11,7 +11,16 @@ import { FileSearch, CheckCircle, RefreshCw, AlertTriangle, X, Plus, Zap } from 
 type InitializationStatus = 'idle' | 'initializing' | 'success' | 'error';
 
 const MainLayout = () => {
-    const { currentAnalysis, uploadError, setUploadError, resetStateForNewAnalysis } = useAnalysisContext();
+    const { 
+        currentAnalysis, 
+        uploadError, 
+        setUploadError, 
+        resetStateForNewAnalysis,
+        analysisProgress,
+        isAnalyzing,
+        canRetry,
+        retryAnalysis
+    } = useAnalysisContext();
     const [initStatus, setInitStatus] = useState<InitializationStatus>('idle');
     const [initError, setInitError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
@@ -22,13 +31,18 @@ const MainLayout = () => {
             setInitError(null);
             
             try {
-                console.log('Initializing Contract RAG service...');
-                await initializeContractRAG();
+                console.log('Checking AI service health...');
+                const isHealthy = await checkAIServiceHealth();
+                
+                if (!isHealthy) {
+                    throw new Error('AI service is not available or not properly configured');
+                }
+                
                 setInitStatus('success');
-                console.log('Contract RAG service initialized successfully');
+                console.log('AI service initialized successfully');
             } catch (error) {
-                console.error("Initialization failed:", error);
-                const errorMessage = error instanceof Error ? error.message : "Failed to initialize the analysis engine.";
+                console.error("AI service initialization failed:", error);
+                const errorMessage = error instanceof Error ? error.message : "Failed to initialize the AI analysis engine.";
                 setInitError(errorMessage);
                 setInitStatus('error');
                 setUploadError(errorMessage);
@@ -106,13 +120,25 @@ const MainLayout = () => {
                         </div>
                     </div>
                     
-                    {/* Progress indicator for initialization */}
-                    {initStatus === 'initializing' && (
+                    {/* Progress indicator for initialization or analysis */}
+                    {(initStatus === 'initializing' || isAnalyzing) && (
                         <div className="mt-4">
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                                <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                    style={{ 
+                                        width: isAnalyzing && analysisProgress 
+                                            ? `${analysisProgress.percentage}%` 
+                                            : '60%' 
+                                    }}
+                                ></div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">Loading AI models and preparing analysis engine...</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {isAnalyzing && analysisProgress?.message 
+                                    ? analysisProgress.message 
+                                    : 'Loading AI models and preparing analysis engine...'
+                                }
+                            </p>
                         </div>
                     )}
                 </header>
@@ -133,6 +159,15 @@ const MainLayout = () => {
                                         >
                                             Retry Initialization
                                         </button>
+                                        {canRetry && (
+                                            <button 
+                                                onClick={retryAnalysis}
+                                                className="text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded transition-colors"
+                                                disabled={isAnalyzing}
+                                            >
+                                                Retry Analysis
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <button 
@@ -162,18 +197,28 @@ const MainLayout = () => {
                         </div>
                     )}
 
-                    {/* Disable functionality if not initialized */}
-                    <div className={initStatus !== 'success' ? 'opacity-50 pointer-events-none' : ''}>
+                    {/* Disable functionality if not initialized or if analyzing */}
+                    <div className={initStatus !== 'success' || isAnalyzing ? 'opacity-50 pointer-events-none' : ''}>
                         {currentAnalysis ? <AnalysisDisplay /> : <FileUpload />}
                     </div>
 
-                    {/* Overlay for non-initialized state */}
-                    {initStatus === 'initializing' && (
+                    {/* Overlay for non-initialized state or analysis in progress */}
+                    {(initStatus === 'initializing' || isAnalyzing) && (
                         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
                             <div className="text-center">
                                 <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                                <p className="text-gray-600">Preparing AI analysis engine...</p>
-                                <p className="text-sm text-gray-500 mt-1">This may take a few moments</p>
+                                <p className="text-gray-600">
+                                    {isAnalyzing 
+                                        ? (analysisProgress?.message || 'Analyzing contract with AI...')
+                                        : 'Preparing AI analysis engine...'
+                                    }
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {isAnalyzing 
+                                        ? `${analysisProgress?.percentage || 0}% complete`
+                                        : 'This may take a few moments'
+                                    }
+                                </p>
                             </div>
                         </div>
                     )}
