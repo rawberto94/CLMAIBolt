@@ -1,14 +1,18 @@
-import React, { useState, useRef } from 'react';
+ import React, { useState, useRef } from 'react';
 import { Upload, Sparkles, Loader2 } from 'lucide-react';
 import { useAnalysisContext } from '../../contexts/AnalysisContext';
-import { handleAnalysisRequest } from '../../services/contractRagService';
-import { AnalysisProgress } from '../../types';
 
 export const FileUpload = () => {
-    const { setIsAnalyzing, setUploadError, setCurrentAnalysis, setAnalyses, isAnalyzing } = useAnalysisContext();
+    const { 
+        analyzeFile, 
+        isAnalyzing, 
+        analysisProgress, 
+        uploadError, 
+        setUploadError 
+    } = useAnalysisContext();
+    
     const [file, setFile] = useState<File | null>(null);
     const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>('');
-    const [progress, setProgress] = useState<AnalysisProgress>({ status: 'idle', percentage: 0 });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (selectedFiles: FileList | null) => {
@@ -23,19 +27,27 @@ export const FileUpload = () => {
             setUploadError("Please select a file and a category.");
             return;
         }
-        setIsAnalyzing(true);
-        setUploadError(null);
-        setProgress({ status: 'idle', percentage: 0 });
 
         try {
-            const newAnalysis = await handleAnalysisRequest(file, selectedTaxonomy, setProgress);
-            setCurrentAnalysis(newAnalysis);
-            setAnalyses(prev => [newAnalysis, ...prev.filter(a => a.id !== newAnalysis.id)]);
+            await analyzeFile(file, selectedTaxonomy);
         } catch (error) {
             console.error("Analysis failed in component:", error);
-            setUploadError(error instanceof Error ? error.message : "An unexpected error occurred.");
-        } finally {
-            setIsAnalyzing(false);
+            // Error handling is now done in the context
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles && droppedFiles.length > 0) {
+            handleFileChange(droppedFiles);
         }
     };
 
@@ -44,13 +56,26 @@ export const FileUpload = () => {
             <div 
                 className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 cursor-pointer hover:border-blue-500 transition-all"
                 onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
             >
-                <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange(e.target.files)} accept=".pdf,.doc,.docx,.txt" />
+                <input 
+                    ref={fileInputRef} 
+                    type="file" 
+                    className="hidden" 
+                    onChange={(e) => handleFileChange(e.target.files)} 
+                    accept=".pdf,.doc,.docx,.txt" 
+                />
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="font-medium text-gray-800">
                     {file ? `Selected: ${file.name}` : 'Click to Upload or Drag & Drop'}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">PDF, DOC, DOCX, or TXT</p>
+                {file && (
+                    <p className="text-xs text-gray-400 mt-1">
+                        Size: {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                )}
             </div>
 
             <select
@@ -65,18 +90,49 @@ export const FileUpload = () => {
                 <option value="NDA">Non-Disclosure Agreement</option>
                 <option value="Sales Agreement">Sales Agreement</option>
                 <option value="Lease Agreement">Lease Agreement</option>
+                <option value="Software License">Software License</option>
+                <option value="Employment Contract">Employment Contract</option>
             </select>
             
             <div className="text-center">
-                <button onClick={analyze} disabled={!file || !selectedTaxonomy || isAnalyzing} className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 rounded-md font-medium transition-all bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    {isAnalyzing ? <><Loader2 className="h-5 w-5 animate-spin" /> Analyzing...</> : <><Sparkles className="h-5 w-5" /> Analyze Contract</>}
+                <button 
+                    onClick={analyze} 
+                    disabled={!file || !selectedTaxonomy || isAnalyzing} 
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 rounded-md font-medium transition-all bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    {isAnalyzing ? (
+                        <>
+                            <Loader2 className="h-5 w-5 animate-spin" /> 
+                            Analyzing...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles className="h-5 w-5" /> 
+                            Analyze Contract
+                        </>
+                    )}
                 </button>
-                {isAnalyzing && (
+                
+                {isAnalyzing && analysisProgress && (
                     <div className="mt-4">
                         <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress.percentage}%` }}></div>
+                            <div 
+                                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                                style={{ width: `${analysisProgress.percentage}%` }}
+                            ></div>
                         </div>
-                        <p className="text-sm text-gray-500 mt-2 capitalize">{progress.status.replace(/_/g, ' ')}</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                            {analysisProgress.message || analysisProgress.status.replace(/_/g, ' ')}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                            {analysisProgress.percentage}% complete
+                        </p>
+                    </div>
+                )}
+                
+                {uploadError && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <p className="text-sm text-red-700">{uploadError}</p>
                     </div>
                 )}
             </div>
