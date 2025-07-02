@@ -1,99 +1,101 @@
+// src/services/pdfService.ts
 import * as pdfjsLib from "pdfjs-dist";
-import { AzureKeyCredential, DocumentAnalysisClient } from "@azure/ai-form-recognizer";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Set the worker source to the correct path relative to the base URL
+// Set the worker source to the correct path
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-// Optional Azure Form Recognizer client - only initialize if credentials are available
-const azureEndpoint = import.meta.env.VITE_AZURE_FORM_RECOGNIZER_ENDPOINT;
-const azureKey = import.meta.env.VITE_AZURE_FORM_RECOGNIZER_KEY;
-let azureClient: DocumentAnalysisClient | null = null;
-
-// Only initialize Azure client if both endpoint and key are available
-if (azureEndpoint && azureKey) {
-  try {
-    azureClient = new DocumentAnalysisClient(
-      azureEndpoint, 
-      new AzureKeyCredential(azureKey)
-    );
-  } catch (error) {
-    console.warn("Failed to initialize Azure Form Recognizer client:", error);
-    azureClient = null;
-  }
-}
-
 /**
- * Extracts text from a PDF file using PDF.js
- * Falls back to Azure Form Recognizer if PDF.js fails and Azure is configured
+ * Extract text from PDF using PDF.js (fast, free, client-side)
+ * Good for text-based PDFs, won't work well with scanned documents
  */
-export async function extractTextFromPDF(file: File): Promise<string> {
+export async function extractTextWithPDFJS(file: File): Promise<string> {
   try {
-    return await extractTextWithPdfJs(file);
-  } catch (pdfJsError) {
-    console.warn("PDF.js extraction failed:", pdfJsError);
+    console.log('[pdfService] Starting PDF.js text extraction...');
     
-    // Try Azure Form Recognizer as fallback if available
-    if (azureClient) {
-      try {
-        return await extractTextWithAzure(file);
-      } catch (azureError) {
-        console.error("Azure Form Recognizer fallback failed:", azureError);
-        throw new Error(`Failed to extract text from PDF: ${azureError instanceof Error ? azureError.message : 'Unknown error'}`);
+    // Convert file to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    console.log(`[pdfService] PDF loaded: ${pdf.numPages} pages`);
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Combine all text items from the page
+      const pageText = textContent.items
+        .map((item: any) => {
+          // Handle different text item types
+          if (typeof item.str === 'string') {
+            return item.str;
+          }
+          return '';
+        })
+        .filter(text => text.trim().length > 0) // Remove empty strings
+        .join(' ');
+      
+      if (pageText.trim()) {
+        fullText += `Page ${pageNum}:\n${pageText}\n\n`;
       }
-    } else {
-      // If Azure is not configured, throw the original error
-      throw new Error(`Failed to extract text from PDF: ${pdfJsError instanceof Error ? pdfJsError.message : 'Unknown error'}`);
+      
+      console.log(`[pdfService] Extracted ${pageText.length} characters from page ${pageNum}`);
     }
-  }
-}
-
-/**
- * Extract text from PDF using PDF.js
- */
-async function extractTextWithPdfJs(file: File): Promise<string> {
-  // Convert file to ArrayBuffer
-  const arrayBuffer = await file.arrayBuffer();
-  
-  // Load the PDF document
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  const pdf = await loadingTask.promise;
-  
-  let fullText = '';
-  
-  // Iterate through each page
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
     
-    fullText += pageText + '\n\n';
+    const cleanedText = fullText.trim();
+    
+    if (cleanedText.length < 50) {
+      throw new Error('PDF appears to contain very little readable text. It might be a scanned document or image-based PDF.');
+    }
+    
+    console.log(`[pdfService] Successfully extracted ${cleanedText.length} characters total`);
+    return cleanedText;
+    
+  } catch (error) {
+    console.error('[pdfService] PDF.js extraction failed:', error);
+    
+    if (error instanceof Error) {
+      // Provide more specific error messages
+      if (error.message.includes('Invalid PDF')) {
+        throw new Error('Invalid PDF file. The file may be corrupted.');
+      } else if (error.message.includes('password')) {
+        throw new Error('PDF is password protected. Please provide an unlocked version.');
+      } else {
+        throw new Error(`PDF extraction failed: ${error.message}`);
+      }
+    }
+    
+    throw new Error('Failed to extract text from PDF using PDF.js');
   }
-  
-  return fullText.trim();
 }
 
 /**
- * Extract text from PDF using Azure Form Recognizer
+ * Quick check to see if PDF.js can handle this file
  */
-async function extractTextWithAzure(file: File): Promise<string> {
-  if (!azureClient) {
-    throw new Error("Azure Form Recognizer not configured");
+export async function canPDFJSHandle(file: File): Promise<boolean> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    // Try to get the first page and see if there's readable text
+    if (pdf.numPages > 0) {
+      const page = await pdf.getPage(1);
+      const textContent = await page.getTextContent();
+      const hasText = textContent.items.length > 0;
+      
+      console.log(`[pdfService] PDF compatibility check: ${hasText ? 'Compatible' : 'May need OCR'}`);
+      return hasText;
+    }
+    
+    return false;
+  } catch (error) {
+    console.log('[pdfService] PDF.js compatibility check failed:', error);
+    return false;
   }
-  
-  // Convert file to Uint8Array
-  const arrayBuffer = await file.arrayBuffer();
-  const fileBytes = new Uint8Array(arrayBuffer);
-  
-  // Analyze the document
-  const poller = await azureClient.beginAnalyzeDocument("prebuilt-document", fileBytes);
-  const result = await poller.pollUntilDone();
-  
-  if (!result.content) {
-    throw new Error("No content extracted by Azure Form Recognizer");
-  }
-  
-  return result.content;
 }
