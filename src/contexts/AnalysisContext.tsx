@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo } from 'react';
 import { AnalysisResult, ChatMessage, AnalysisProgress } from '../types';
 import { analyzeContractWithAI, getErrorMessage } from '../services/aiService';
+import { extractTextFromDocument } from '../services/documentService'; // Use the new orchestrator
 
 // Extended AnalysisResult with id for context management
 export interface AnalysisResultWithId extends AnalysisResult {
@@ -67,44 +68,20 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     setIsAnalyzing(false);
   };
 
-  // Helper function to extract text from file
+  // Helper function to extract text from file using your existing services
   const extractTextFromFile = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (!result) {
-          reject(new Error('Failed to read file content'));
-          return;
-        }
-        
-        // For now, we'll handle text files directly
-        // In a real implementation, you'd need libraries for PDF, Word, etc.
-        if (file.type === 'text/plain') {
-          resolve(result);
-        } else if (file.type === 'application/pdf') {
-          // For PDF files, you'd need a PDF parsing library
-          // For now, we'll provide a placeholder
-          reject(new Error('PDF parsing not yet implemented. Please use text files for testing.'));
-        } else if (file.type.includes('word') || file.type.includes('document')) {
-          // For Word documents, you'd need a document parsing library
-          reject(new Error('Word document parsing not yet implemented. Please use text files for testing.'));
-        } else {
-          // Try to read as text anyway
-          resolve(result);
-        }
-      };
-      
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
-      
-      reader.readAsText(file);
-    });
+    console.log(`[AnalysisContext] Extracting text from ${file.type} file: ${file.name}`);
+    
+    try {
+      // Use the smart document service that handles everything
+      return await extractTextFromDocument(file);
+    } catch (error) {
+      console.error('[AnalysisContext] Text extraction failed:', error);
+      throw error;
+    }
   };
 
-  // Main analysis function
+  // Main analysis function - now uses the smart document service
   const analyzeFile = async (file: File, taxonomy: string = 'standard'): Promise<void> => {
     console.log('[AnalysisContext] Starting file analysis:', file.name);
     
@@ -121,21 +98,26 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       setAnalysisProgress({
         status: 'uploading',
         percentage: 5,
-        message: 'Reading file content...'
+        message: 'Processing document...'
       });
 
-      // Extract text from file
-      const contractText = await extractTextFromFile(file);
+      // Extract text using the smart document service
+      console.log('[AnalysisContext] Extracting text using document service...');
+      const contractText = await extractTextFromDocument(file);
       
       if (!contractText || contractText.trim().length === 0) {
-        throw new Error('No readable content found in the file');
+        throw new Error('No readable content found in the document');
       }
 
-      // Progress: File read successfully
+      if (contractText.length < 50) {
+        throw new Error('Document contains very little text. Please check if the file is valid.');
+      }
+
+      // Progress: File processed successfully
       setAnalysisProgress({
         status: 'processing_on_server',
-        percentage: 20,
-        message: 'File content extracted. Starting AI analysis...'
+        percentage: 30,
+        message: `Document processed successfully. Extracted ${contractText.length} characters. Starting AI analysis...`
       });
 
       // Call AI service with progress updates
@@ -146,7 +128,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       );
 
       if (!result.success || !result.analysis) {
-        throw new Error(result.error || 'Analysis failed');
+        throw new Error(result.error || 'AI analysis failed');
       }
 
       // Progress: Analysis complete
