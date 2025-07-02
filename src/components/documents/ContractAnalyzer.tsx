@@ -5,29 +5,81 @@ import { AnalysisProvider, useAnalysisContext } from '../../contexts/AnalysisCon
 import { initializeContractRAG } from '../../services/contractRagService';
 import { FileUpload } from '../contract-analyzer/FileUpload';
 import { AnalysisDisplay } from '../contract-analyzer/AnalysisDisplay';
-
 // Icons
-import { FileSearch, CheckCircle, RefreshCw, AlertTriangle, X, Plus } from 'lucide-react';
+import { FileSearch, CheckCircle, RefreshCw, AlertTriangle, X, Plus, Zap } from 'lucide-react';
+
+type InitializationStatus = 'idle' | 'initializing' | 'success' | 'error';
 
 const MainLayout = () => {
     const { currentAnalysis, uploadError, setUploadError, resetStateForNewAnalysis } = useAnalysisContext();
-    const [isInitializing, setIsInitializing] = useState(true);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const [initStatus, setInitStatus] = useState<InitializationStatus>('idle');
+    const [initError, setInitError] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     useEffect(() => {
         const init = async () => {
+            setInitStatus('initializing');
+            setInitError(null);
+            
             try {
+                console.log('Initializing Contract RAG service...');
                 await initializeContractRAG();
-                setIsInitialized(true);
+                setInitStatus('success');
+                console.log('Contract RAG service initialized successfully');
             } catch (error) {
                 console.error("Initialization failed:", error);
-                setUploadError(error instanceof Error ? error.message : "Failed to initialize the analysis engine.");
-            } finally {
-                setIsInitializing(false);
+                const errorMessage = error instanceof Error ? error.message : "Failed to initialize the analysis engine.";
+                setInitError(errorMessage);
+                setInitStatus('error');
+                setUploadError(errorMessage);
             }
         };
+        
         init();
-    }, [setUploadError]);
+    }, [setUploadError, retryCount]);
+
+    const handleRetryInitialization = () => {
+        setRetryCount(prev => prev + 1);
+    };
+
+    const getStatusIcon = () => {
+        switch (initStatus) {
+            case 'initializing':
+                return <RefreshCw className="h-4 w-4 animate-spin" />;
+            case 'success':
+                return <CheckCircle className="h-4 w-4" />;
+            case 'error':
+                return <AlertTriangle className="h-4 w-4" />;
+            default:
+                return <Zap className="h-4 w-4" />;
+        }
+    };
+
+    const getStatusText = () => {
+        switch (initStatus) {
+            case 'initializing':
+                return 'Initializing AI Engine...';
+            case 'success':
+                return 'AI Engine Ready';
+            case 'error':
+                return 'Initialization Failed';
+            default:
+                return 'Starting...';
+        }
+    };
+
+    const getStatusColor = () => {
+        switch (initStatus) {
+            case 'initializing':
+                return 'text-blue-600';
+            case 'success':
+                return 'text-green-600';
+            case 'error':
+                return 'text-red-600';
+            default:
+                return 'text-gray-500';
+        }
+    };
 
     return (
         <div className="w-full max-w-5xl mx-auto p-4 sm:p-6">
@@ -39,32 +91,106 @@ const MainLayout = () => {
                             <span>AI Contract Analyzer</span>
                         </h2>
                         <div className="flex items-center gap-3">
-                            {isInitializing && <span className="flex items-center gap-1.5 text-sm text-gray-500"><RefreshCw className="h-4 w-4 animate-spin" />Initializing...</span>}
-                            {isInitialized && <span className="flex items-center gap-1.5 text-sm text-green-600"><CheckCircle className="h-4 w-4" />System Ready</span>}
+                            <span className={`flex items-center gap-1.5 text-sm ${getStatusColor()}`}>
+                                {getStatusIcon()}
+                                {getStatusText()}
+                            </span>
+                            {initStatus === 'error' && (
+                                <button
+                                    onClick={handleRetryInitialization}
+                                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    Retry
+                                </button>
+                            )}
                         </div>
                     </div>
-                </header>
-                <main className="p-4 sm:p-6">
-                    {uploadError && (
-                         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700">
-                           <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                           <div className="flex-1">
-                             <p className="font-medium">An Error Occurred</p>
-                             <p className="text-sm mt-1">{uploadError}</p>
-                           </div>
-                           <button onClick={() => setUploadError(null)} className="p-1 hover:bg-red-100 rounded-full -m-1"><X className="h-4 w-4" /></button>
-                         </div>
+                    
+                    {/* Progress indicator for initialization */}
+                    {initStatus === 'initializing' && (
+                        <div className="mt-4">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Loading AI models and preparing analysis engine...</p>
+                        </div>
                     )}
-                    {currentAnalysis ? <AnalysisDisplay /> : <FileUpload />}
+                </header>
+
+                <main className="p-4 sm:p-6">
+                    {/* Initialization Error */}
+                    {initError && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-start gap-3 text-red-700">
+                                <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                    <p className="font-medium">Initialization Error</p>
+                                    <p className="text-sm mt-1">{initError}</p>
+                                    <div className="mt-2 flex gap-2">
+                                        <button 
+                                            onClick={handleRetryInitialization}
+                                            className="text-xs bg-red-100 hover:bg-red-200 px-2 py-1 rounded transition-colors"
+                                        >
+                                            Retry Initialization
+                                        </button>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setInitError(null)} 
+                                    className="p-1 hover:bg-red-100 rounded-full -m-1"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Upload Error */}
+                    {uploadError && uploadError !== initError && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700">
+                            <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="font-medium">Upload Error</p>
+                                <p className="text-sm mt-1">{uploadError}</p>
+                            </div>
+                            <button 
+                                onClick={() => setUploadError(null)} 
+                                className="p-1 hover:bg-red-100 rounded-full -m-1"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Disable functionality if not initialized */}
+                    <div className={initStatus !== 'success' ? 'opacity-50 pointer-events-none' : ''}>
+                        {currentAnalysis ? <AnalysisDisplay /> : <FileUpload />}
+                    </div>
+
+                    {/* Overlay for non-initialized state */}
+                    {initStatus === 'initializing' && (
+                        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
+                            <div className="text-center">
+                                <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                                <p className="text-gray-600">Preparing AI analysis engine...</p>
+                                <p className="text-sm text-gray-500 mt-1">This may take a few moments</p>
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
-            {currentAnalysis && (
+
+            {/* Floating Action Button - only show when ready and analysis exists */}
+            {currentAnalysis && initStatus === 'success' && (
                 <button
                     onClick={resetStateForNewAnalysis}
-                    className="fixed bottom-6 right-6 p-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 z-50"
+                    className="fixed bottom-6 right-6 p-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 z-50 group"
                     title="Analyze New Contract"
                 >
                     <Plus className="h-6 w-6" />
+                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        Analyze New Contract
+                    </span>
                 </button>
             )}
         </div>
