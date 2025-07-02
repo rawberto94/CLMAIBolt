@@ -4,7 +4,7 @@ import { AnalysisResult, AnalysisProgress } from '../types';
 type ProgressCallback = (progress: AnalysisProgress) => void;
 
 // Configuration
-const BACKEND_API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000/api';
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/api';
 const ANALYZE_ENDPOINT = `${BACKEND_API_URL}/analyze`;
 const HEALTH_ENDPOINT = `${BACKEND_API_URL}/health`;
 
