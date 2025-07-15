@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, BarChart2, ArrowRight, Search, Filter, Settings } from 'lucide-react';
+import { FileText, BarChart2, ArrowRight, Search, Filter, Settings, FileSearch, Calculator, Beaker } from 'lucide-react';
 
-// Import the components for each tool
+// Import the existing components
 import ContractAnalyzer from '../documents/ContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
-// You would add imports for these if they exist
-// import RfpManagementSystem from './RfpManagementSystem';
-// import RateCardsBenchmarker from './RateCardsBenchmarker';
-// import ContractAnalysisDemo from './ContractAnalysisDemo';
+
+// Import the missing components from the rfp folder
+import RfpManagementSystem from './rfp/RfpManagementSystem';
+import RateCardsBenchmarker from './rfp/RateCardsBenchmarker';
+import ContractAnalysisDemo from './rfp/ContractAnalysisDemo';
 
 const ToolsPage: React.FC = () => {
     // --- State Management ---
-    // This state will hold the current tool being viewed (e.g., 'analyzer', 'evaluation')
     const [subRoute, setSubRoute] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- Data Definition for Tools ---
-    // This is your data structure, which is great.
+    // --- Data Definition for ALL Tools ---
     const tools = [
         {
             id: 'analyzer',
@@ -43,25 +42,60 @@ const ToolsPage: React.FC = () => {
                 'Collaborative assessment',
                 'Generate evaluation reports'
             ]
+        },
+        {
+            id: 'rfp-system',
+            name: 'RFP Management System',
+            description: 'Manage Request for Proposals from creation to vendor selection.',
+            icon: FileSearch,
+            component: <RfpManagementSystem />,
+            features: [
+                'Create and manage RFPs',
+                'Track vendor responses',
+                'Automated scoring and evaluation',
+                'Collaborative review process'
+            ]
+        },
+        {
+            id: 'rate-cards',
+            name: 'Rate Cards Benchmarker',
+            description: 'Compare and benchmark rate cards across vendors and services.',
+            icon: Calculator,
+            component: <RateCardsBenchmarker />,
+            features: [
+                'Import and compare rate cards',
+                'Benchmark against industry standards',
+                'Identify cost optimization opportunities',
+                'Generate comparison reports'
+            ]
+        },
+        {
+            id: 'contract-demo',
+            name: 'Contract Analysis Demo',
+            description: 'Interactive demonstration of contract analysis capabilities.',
+            icon: Beaker,
+            component: <ContractAnalysisDemo />,
+            features: [
+                'Live contract analysis examples',
+                'Interactive feature exploration',
+                'Sample reports and outputs',
+                'Guided walkthrough'
+            ]
         }
-        // Add your other tools (RFP, Rate Cards, etc.) here when ready
     ];
 
     // --- Routing Logic ---
-    // This effect listens for changes in the URL hash and updates our state
     useEffect(() => {
         const handleHashChange = () => {
-            const hash = window.location.hash.slice(1); // e.g., "tools/analyzer"
+            const hash = window.location.hash.slice(1);
             const parts = hash.split('/');
-            // If the hash is "tools/analyzer", parts[1] will be "analyzer"
             setSubRoute(parts[1] || null);
         };
 
-        handleHashChange(); // Run on initial load
+        handleHashChange();
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
-
 
     // --- Rendering Logic ---
     const activeTool = tools.find(tool => tool.id === subRoute);
@@ -74,13 +108,12 @@ const ToolsPage: React.FC = () => {
         );
     }, [searchQuery, tools]);
 
-    // If a sub-route is active (e.g., 'analyzer'), show that tool's component.
+    // If a sub-route is active, show that tool's component
     if (activeTool) {
         return activeTool.component;
     }
 
     // --- Default View: The Tool Selection Screen ---
-    // If no sub-route is active, show the list of all available tools.
     return (
         <div className="space-y-8">
             <div className="bg-white rounded-xl shadow-sm p-6">
@@ -108,12 +141,11 @@ const ToolsPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTools.map(tool => (
                     <div
                         key={tool.id}
-                        className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col"
-                        // The onClick handler now navigates to the correct hash
+                        className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col cursor-pointer"
                         onClick={() => { window.location.hash = `tools/${tool.id}`; }}
                     >
                         <div className="p-6 flex-grow">
