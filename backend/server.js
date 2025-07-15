@@ -62,22 +62,24 @@ app.use(express.json());
 // ==================================================================
 // 4. Gemini API Client Setup
 // ==================================================================
-const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-// We remove the explicit JSON mode and will rely on our own robust parser.
-const model = genAI.getGenerativeModel({ model: config.modelName });
+const { GoogleGenAI } = require("@google/genai");  // New import
 
-const generationConfig = {
-  temperature: 0.2,
-  maxOutputTokens: 8192,
-};
-
-const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-];
-
+// In GenAI Client Setup:
+const genAI = new GoogleGenAI(config.geminiApiKey);
+const model = genAI.getGenerativeModel({
+  model: 'gemini-2.5-flash',  // Updated model name
+  generationConfig: {
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+    responseMimeType: 'application/json'  // Native JSON support
+  },
+  safetySettings: [  // Updated to new format
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+  ],
+});
 // ==================================================================
 // 5. Helper Functions
 // ==================================================================
