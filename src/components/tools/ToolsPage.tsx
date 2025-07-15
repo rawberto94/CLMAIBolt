@@ -6,9 +6,9 @@ import ContractAnalyzer from '../documents/ContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
 
 // Import the missing components from the rfp folder
-import RfpManagementSystem from './tools/RfpManagementSystem';
-import RateCardsBenchmarker from './tools/RateCardsBenchmarker';
-import ContractAnalysisDemo from './tools/ContractAnalysisDemo';
+import RfpManagementSystem from '../tools/RfpManagementSystem';
+import RateCardsBenchmarker from './RateCardsBenchmarker';
+import ContractAnalysisDemo from './ContractAnalysisDemo';
 
 const ToolsPage: React.FC = () => {
     // --- State Management ---
