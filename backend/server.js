@@ -9,6 +9,8 @@ const rateLimit = require('express-rate-limit');
 const pino = require('pino');
 require('dotenv').config();
 
+console.log('All env vars:', process.env);  // Shows all variables
+
 const { GoogleGenAI } = require("@google/genai");
 
 // Debug .env load (temporary, remove after testing)
