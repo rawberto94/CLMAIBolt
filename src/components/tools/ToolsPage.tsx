@@ -6,9 +6,9 @@ import ContractAnalyzer from '../documents/ContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
 
 // Import the missing components from the rfp folder
-import RfpManagementSystem from '../tools/RfpManagementSystem';
-import RateCardsBenchmarker from './RateCardsBenchmarker';
-import ContractAnalysisDemo from './ContractAnalysisDemo';
+import RfpManagementSystem from './rfp/RfpManagementSystem';
+import RateCardsBenchmarker from './rfp/RateCardsBenchmarker';
+import ContractAnalysisDemo from './rfp/ContractAnalysisDemo';
 
 const ToolsPage: React.FC = () => {
     // --- State Management ---
@@ -18,7 +18,7 @@ const ToolsPage: React.FC = () => {
     // --- Data Definition for ALL Tools ---
     const tools = [
         {
-            id: 'analyzer',
+            id: 'contract-analyzer',
             name: 'AI Contract Analyzer',
             description: 'Analyze documents using AI to extract key information, risks, and insights.',
             icon: FileText,
