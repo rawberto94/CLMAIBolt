@@ -9,6 +9,9 @@ const rateLimit = require('express-rate-limit');
 const pino = require('pino');
 require('dotenv').config();
 
+console.log('Loaded .env. GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'present' : 'missing');
+console.log('Model:', config.modelName);
+
 const { GoogleGenAI } = require("@google/genai");
 
 const logger = pino({
