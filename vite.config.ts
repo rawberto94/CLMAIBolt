@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-// We have removed the 'path' import and the 'resolve.alias' section.
 export default defineConfig({
   plugins: [
     react(),
@@ -15,5 +14,15 @@ export default defineConfig({
         }
       ]
     })
-  ]
+  ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',  // Your backend URL
+        changeOrigin: true,  // Changes the origin header to match target
+        secure: false,  // For local dev (non-HTTPS)
+        rewrite: (path) => path.replace(/^\/api/, '/api')  // Preserve /api prefix
+      }
+    }
+  }
 });
