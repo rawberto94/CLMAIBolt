@@ -9,6 +9,9 @@ import ProjectEvaluation from './components/evaluation/ProjectEvaluation';
 import ToolsPage from './components/tools/ToolsPage';
 import SuppliersPage from './components/suppliers/SuppliersPage';
 import { useLocation } from './contexts/LocationContext';
+import RfpManagementSystem from './components/tools/rfp/RfpManagementSystem';
+import RateCardsBenchmarker from './components/tools/rfp/RateCardsBenchmarker';
+import ContractAnalysisDemo from './components/tools/rfp/ContractAnalysisDemo';
 
 // STEP 1: Import our new component
 import ContractAnalyzer from './components/documents/ContractAnalyzer';
