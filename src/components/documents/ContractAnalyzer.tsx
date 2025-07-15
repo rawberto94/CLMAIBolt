@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 // Corrected relative paths below
 import { AnalysisProvider, useAnalysisContext } from '../../contexts/AnalysisContext';
-import { checkAIServiceHealth } from '../../services/aiService';
+import { checkBackendHealth } from '../../services/contractRagService';
 import { FileUpload } from '../contract-analyzer/FileUpload';
 import { AnalysisDisplay } from '../contract-analyzer/AnalysisDisplay';
 // Icons
@@ -31,18 +31,18 @@ const MainLayout = () => {
             setInitError(null);
             
             try {
-                console.log('Checking AI service health...');
-                const isHealthy = await checkAIServiceHealth();
+                console.log('Checking backend service health...');
+                const isHealthy = await checkBackendHealth();
                 
                 if (!isHealthy) {
-                    throw new Error('AI service is not available or not properly configured');
+                    throw new Error('Backend service is not available or not properly configured');
                 }
                 
                 setInitStatus('success');
-                console.log('AI service initialized successfully');
+                console.log('Backend service initialized successfully');
             } catch (error) {
-                console.error("AI service initialization failed:", error);
-                const errorMessage = error instanceof Error ? error.message : "Failed to initialize the AI analysis engine.";
+                console.error("Backend service initialization failed:", error);
+                const errorMessage = error instanceof Error ? error.message : "Failed to initialize the backend analysis service.";
                 setInitError(errorMessage);
                 setInitStatus('error');
                 setUploadError(errorMessage);
@@ -72,9 +72,9 @@ const MainLayout = () => {
     const getStatusText = () => {
         switch (initStatus) {
             case 'initializing':
-                return 'Initializing AI Engine...';
+                return 'Initializing Backend Service...';
             case 'success':
-                return 'AI Engine Ready';
+                return 'Backend Service Ready';
             case 'error':
                 return 'Initialization Failed';
             default:
@@ -136,7 +136,7 @@ const MainLayout = () => {
                             <p className="text-xs text-gray-500 mt-1">
                                 {isAnalyzing && analysisProgress?.message 
                                     ? analysisProgress.message 
-                                    : 'Loading AI models and preparing analysis engine...'
+                                    : 'Connecting to backend service and preparing analysis...'
                                 }
                             </p>
                         </div>
@@ -209,8 +209,8 @@ const MainLayout = () => {
                                 <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
                                 <p className="text-gray-600">
                                     {isAnalyzing 
-                                        ? (analysisProgress?.message || 'Analyzing contract with AI...')
-                                        : 'Preparing AI analysis engine...'
+                                        ? (analysisProgress?.message || 'Analyzing contract via backend service...')
+                                        : 'Preparing backend analysis service...'
                                     }
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo } from 'react';
 import { AnalysisResult, ChatMessage, AnalysisProgress } from '../types';
-import { analyzeContractWithAI, getErrorMessage } from '../services/aiService';
+import { handleAnalysisRequest, getErrorMessage } from '../services/contractRagService';
 import { extractTextFromDocument } from '../services/documentService'; // Use the new orchestrator
 
 // Extended AnalysisResult with id for context management
@@ -121,7 +121,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       });
 
       // Call AI service with progress updates
-      const result = await analyzeContractWithAI(
+      const result = await handleAnalysisRequest(
         contractText,
         taxonomy,
         true
