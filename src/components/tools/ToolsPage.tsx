@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, BarChart2, ArrowRight, Search, Filter, Settings, FileSearch, Calculator, Beaker } from 'lucide-react';
 
 // Import the existing components
+import ContractAnalyzer from '../documents/ContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
 
 // Import the missing components from the rfp folder
@@ -16,6 +17,19 @@ const ToolsPage: React.FC = () => {
 
     // --- Data Definition for ALL Tools ---
     const tools = [
+        {
+            id: 'analyzer',
+            name: 'AI Contract Analyzer',
+            description: 'Analyze documents using AI to extract key information, risks, and insights.',
+            icon: FileText,
+            component: <ContractAnalyzer />,
+            features: [
+                'Extract key terms and clauses',
+                'Identify potential risks and obligations',
+                'Generate summary reports',
+                'AI-powered contract analysis'
+            ]
+        },
         {
             id: 'evaluation',
             name: 'Advanced Project Evaluation',
@@ -118,8 +132,8 @@ const ToolsPage: React.FC = () => {
                         <Search className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
-                        type="text",
-                        placeholder="Search tools...",
+                        type="text"
+                        placeholder="Search tools..."
                         className="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
