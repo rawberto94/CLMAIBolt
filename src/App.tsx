@@ -59,14 +59,22 @@ function App() {
       case 'suppliers':
         return <SuppliersPage />;
       case 'tools':
-        // STEP 2: Add the logic to show the Contract Analyzer
         if (subRoute === 'contract-analyzer') {
           return <ContractAnalyzer />;
         }
         if (subRoute === 'evaluation' && projectId) {
           return <ProjectEvaluation projectId={projectId} />;
         }
-        return <ToolsPage />; // This is the default for the /tools route
+        if (subRoute === 'rfp-system') {
+          return <RfpManagementSystem />;
+        }
+        if (subRoute === 'rate-cards') {
+          return <RateCardsBenchmarker />;
+        }
+        if (subRoute === 'contract-demo') {
+          return <ContractAnalysisDemo />;
+        }
+        return <ToolsPage />;
       default:
         return <DashboardPage />;
     }
