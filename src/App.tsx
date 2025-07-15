@@ -13,9 +13,6 @@ import RfpManagementSystem from './components/tools/rfp/RfpManagementSystem';
 import RateCardsBenchmarker from './components/tools/rfp/RateCardsBenchmarker';
 import ContractAnalysisDemo from './components/tools/rfp/ContractAnalysisDemo';
 
-// STEP 1: Import our new component
-import ContractAnalyzer from './components/documents/ContractAnalyzer';
-
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const { updateLocation } = useLocation();
@@ -59,22 +56,11 @@ function App() {
       case 'suppliers':
         return <SuppliersPage />;
       case 'tools':
-        if (subRoute === 'contract-analyzer') {
-          return <ContractAnalyzer />;
-        }
+        // STEP 2: Add the logic to show the Contract Analyzer
         if (subRoute === 'evaluation' && projectId) {
           return <ProjectEvaluation projectId={projectId} />;
         }
-        if (subRoute === 'rfp-system') {
-          return <RfpManagementSystem />;
-        }
-        if (subRoute === 'rate-cards') {
-          return <RateCardsBenchmarker />;
-        }
-        if (subRoute === 'contract-demo') {
-          return <ContractAnalysisDemo />;
-        }
-        return <ToolsPage />;
+        return <ToolsPage />; // This is the default for the /tools route
       default:
         return <DashboardPage />;
     }
