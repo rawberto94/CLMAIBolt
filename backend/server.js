@@ -1,12 +1,12 @@
 // backend/server.js - Minimal Version for Testing
 
 const express = require('express');
-const multer = require('multer');
 const pdf = require('pdf-parse');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const pino = require('pino');
+const { GoogleGenerativeAI } = require('@google/genai');
 require('dotenv').config();
 
 // Debug .env and startup
@@ -26,9 +26,11 @@ const config = {
 };
 
 const app = express();
-const upload = multer({
+// Configure multer for file uploads
+const multer = require('multer');
+const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 app.use(helmet());
@@ -47,6 +49,220 @@ app.use(express.json());
 // Test route - no AI needed
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Document analysis endpoint
+app.post('/api/analyze', upload.single('file'), async (req, res) => {
+  try {
+    logger.info('Received analysis request');
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No file provided' 
+      });
+    }
+    
+    // Validate API key
+    if (!process.env.GEMINI_API_KEY) {
+      logger.error('GEMINI_API_KEY not configured');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'AI service is not properly configured' 
+      });
+    }
+    
+    // Extract text from PDF
+    logger.info(`Processing ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)`);
+    
+    let extractedText;
+    try {
+      const data = await pdf(req.file.buffer);
+      extractedText = data.text;
+      
+      if (extractedText.length < 50) {
+        return res.status(400).json({
+          success: false,
+          error: 'Document contains very little text. Please check if the file is valid.'
+        });
+      }
+      
+      logger.info(`Extracted ${extractedText.length} characters of text`);
+    } catch (extractError) {
+      logger.error({ error: extractError }, 'Failed to extract text from document');
+      return res.status(400).json({
+        success: false,
+        error: 'Failed to extract text from document',
+        details: extractError.message
+      });
+    }
+    
+    // Initialize Google Generative AI
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    // Create structured prompt for analysis
+    const prompt = `
+    As a contract analysis expert, analyze the following contract text and extract key information.
+    Return a detailed analysis in JSON format with the following structure:
+    {
+      "overview": {
+        "title": "Contract title",
+        "type": "Contract type (e.g., MSA, SOW, NDA)",
+        "status": "Active/Expired/Draft",
+        "parties": ["List of parties involved"],
+        "effectiveDate": "Effective date if found",
+        "expirationDate": "Expiration date if found",
+        "totalValue": "Total contract value if found",
+        "description": "Brief description of the contract"
+      },
+      "financials": {
+        "totalValue": 0, 
+        "currency": "USD",
+        "paymentTerms": {
+          "schedule": "Payment schedule",
+          "terms": "Payment terms (e.g., Net 30)",
+          "latePaymentFee": "Late payment fees",
+          "earlyPaymentDiscount": "Early payment discount terms"
+        },
+        "rateCards": [
+          {"role": "Role name", "rate": 0, "unit": "hourly/daily/fixed"}
+        ],
+        "fees": [
+          {"type": "Fee type", "description": "Description", "cap": "Cap amount if any"}
+        ],
+        "invoicingFrequency": "Monthly/Quarterly/etc.",
+        "budgetAllocation": {
+          "year1": 0,
+          "year2": 0,
+          "year3": 0
+        }
+      },
+      "obligations": {
+        "deliverables": [
+          {"description": "Deliverable description", "deadline": "Deadline date", "status": "On Track/At Risk/Delayed"}
+        ],
+        "serviceLevel": {
+          "availability": "Availability requirements",
+          "responseTime": {
+            "critical": "Response time for critical issues",
+            "high": "Response time for high priority",
+            "medium": "Response time for medium priority",
+            "low": "Response time for low priority"
+          },
+          "penalties": "Penalties for SLA violations"
+        },
+        "reporting": {
+          "frequency": "Reporting frequency",
+          "contents": ["Required report contents"]
+        },
+        "keyPersonnel": [
+          {"role": "Role title", "replaceability": "Replacement terms"}
+        ]
+      },
+      "risks": [
+        {
+          "category": "Risk category",
+          "description": "Risk description",
+          "severity": "High/Medium/Low",
+          "impact": "Impact description",
+          "mitigation": "Mitigation strategy"
+        }
+      ],
+      "compliance": {
+        "score": 0,
+        "requirements": [
+          {"category": "Requirement category", "status": "Compliant/Partial/Non-Compliant", "details": "Details"}
+        ],
+        "industryRegulations": [
+          {"name": "Regulation name", "status": "Compliant/At Risk/Non-Compliant", "details": "Details"}
+        ]
+      },
+      "recommendations": [
+        {
+          "priority": "High/Medium/Low",
+          "description": "Recommendation description",
+          "benefit": "Benefit description",
+          "effort": "High/Medium/Low"
+        }
+      ],
+      "benchmarks": {
+        "rateComparison": {
+          "averageRate": 0,
+          "marketAverage": 0,
+          "percentile": 0
+        },
+        "termComparison": {
+          "paymentTerms": {"contract": "Contract terms", "marketAverage": "Market average", "status": "favorable/standard/unfavorable"},
+          "contractLength": {"contract": "Contract length", "marketAverage": "Market average", "status": "favorable/standard/unfavorable"},
+          "terminationNotice": {"contract": "Notice period", "marketAverage": "Market average", "status": "favorable/standard/unfavorable"}
+        }
+      }
+    }
+
+    Important: Return ONLY the JSON with no additional text, markdown formatting, or explanations.
+    
+    Contract text:
+    ${extractedText.substring(0, 25000)}`; // Limit text to avoid token issues
+    
+    // Generate analysis
+    try {
+      logger.info('Sending text to AI for analysis');
+      const result = await model.generateContent(prompt);
+      const response = result.response.text();
+      
+      // Try to parse the response as JSON
+      try {
+        const analysisResult = JSON.parse(response);
+        logger.info('Successfully parsed AI response as JSON');
+        
+        return res.status(200).json({
+          success: true,
+          analysis: analysisResult
+        });
+      } catch (parseError) {
+        logger.error({ error: parseError }, 'Failed to parse AI response as JSON');
+        
+        // Try to extract JSON from the response text (in case the model wrapped it)
+        const jsonRegex = /```json\s*([\s\S]*?)\s*```|(\{[\s\S]*\})/;
+        const match = jsonRegex.exec(response);
+        
+        if (match && (match[1] || match[2])) {
+          try {
+            const analysisResult = JSON.parse(match[1] || match[2]);
+            logger.info('Successfully extracted and parsed JSON from AI response');
+            
+            return res.status(200).json({
+              success: true,
+              analysis: analysisResult
+            });
+          } catch (secondParseError) {
+            logger.error('Failed to extract JSON from AI response');
+          }
+        }
+        
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to parse AI analysis results',
+          details: 'The AI service did not return properly formatted data'
+        });
+      }
+    } catch (aiError) {
+      logger.error({ error: aiError }, 'Error generating analysis with AI');
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to analyze document with AI',
+        details: aiError.message
+      });
+    }
+  } catch (error) {
+    logger.error({ error }, 'Unexpected error in analyze endpoint');
+    return res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred',
+      details: error.message
+    });
+  }
 });
 
 // Error Handling & Server Startup

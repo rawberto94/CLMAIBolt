@@ -2,6 +2,7 @@
 import { AnalysisResult, AnalysisProgress } from '../types';
 
 type ProgressCallback = (progress: AnalysisProgress) => void;
+type ContractText = string;
 
 // Configuration
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/api';
@@ -109,6 +110,180 @@ export const initializeContractRAG = async (): Promise<boolean> => {
 
 // Enhanced analysis request with better error handling and progress
 export const handleAnalysisRequest = async (
+  contractText: ContractText,
+  taxonomy: string = 'standard',
+  useBackend: boolean = true,
+  onProgress?: ProgressCallback
+): Promise<{
+  success: boolean;
+  analysis?: AnalysisResult;
+  error?: string;
+}> => {
+  console.log("Starting contract analysis request...");
+  
+  // Validate input
+  if (!contractText) {
+    throw new ContractAnalysisError('No text provided', 'INVALID_TEXT');
+  }
+
+  if (onProgress) {
+    onProgress({ 
+      status: 'processing_on_server', 
+      percentage: 30,
+      message: 'Analyzing contract text...'
+    });
+  }
+  
+  let retryCount = 0;
+  
+  while (retryCount < MAX_RETRIES) {
+    try {
+      if (onProgress) {
+        onProgress({ 
+          status: 'processing_on_server', 
+          percentage: 30 + (retryCount * 5),
+          message: retryCount > 0 ? `Retrying analysis (attempt ${retryCount + 1})...` : 'AI is analyzing the contract...'
+        });
+      }
+
+      if (useBackend) {
+        // Call to our structured analysis endpoint with text directly
+        const formData = new FormData();
+        
+        // Convert text to a file-like object
+        const textBlob = new Blob([contractText], { type: 'text/plain' });
+        const textFile = new File([textBlob], 'extracted_text.txt', { type: 'text/plain' });
+        
+        formData.append('file', textFile);
+        formData.append('taxonomy', taxonomy);
+        formData.append('timestamp', new Date().toISOString());
+        
+        console.log(`Sending text to backend at ${ANALYZE_ENDPOINT}`);
+        
+        const response = await fetchWithTimeout(ANALYZE_ENDPOINT, {
+          method: 'POST',
+          body: formData,
+        }, ANALYSIS_TIMEOUT);
+
+        if (onProgress) {
+          onProgress({ 
+            status: 'finalizing', 
+            percentage: 80,
+            message: 'Processing analysis results...'
+          });
+        }
+
+        if (!response.ok) {
+          let errorData: BackendError;
+          try {
+            errorData = await response.json();
+          } catch {
+            errorData = { 
+              error: `Server responded with status: ${response.status}`,
+              details: 'Unable to parse error response from server'
+            };
+          }
+
+          // Check if it's a retryable error
+          if (response.status >= 500 && retryCount < MAX_RETRIES - 1) {
+            console.warn(`Server error (${response.status}), retrying...`);
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            continue;
+          }
+
+          throw new ContractAnalysisError(
+            errorData.error || 'Analysis failed',
+            errorData.code || `HTTP_${response.status}`,
+            errorData.details
+          );
+        }
+
+        console.log("Received successful response from backend");
+        
+        if (onProgress) {
+          onProgress({ 
+            status: 'complete', 
+            percentage: 100,
+            message: 'Analysis complete!'
+          });
+        }
+
+        const result = await response.json();
+        
+        // Validate the response structure
+        if (!result || !result.success || !result.analysis) {
+          throw new ContractAnalysisError(
+            'Invalid response from server',
+            'INVALID_RESPONSE',
+            'The server returned an invalid analysis result'
+          );
+        }
+
+        console.log("Contract analysis completed successfully");
+        return {
+          success: true,
+          analysis: result.analysis as AnalysisResult
+        };
+      } else {
+        // This would be a client-side fallback if needed
+        // For now, just return an error
+        throw new ContractAnalysisError(
+          'Client-side analysis not implemented',
+          'NOT_IMPLEMENTED',
+          'The system requires a backend connection for analysis'
+        );
+      }
+
+    } catch (error) {
+      if (error instanceof ContractAnalysisError) {
+        // Don't retry custom errors
+        if (onProgress) {
+          onProgress({ status: 'error', percentage: 100, message: error.message });
+        }
+        throw error;
+      }
+
+      // For network errors, try to retry
+      if (retryCount < MAX_RETRIES - 1) {
+        console.warn(`Network error, retrying...`, error);
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        continue;
+      }
+
+      // Final failure
+      console.error("Analysis request failed after all retries:", error);
+      if (onProgress) {
+        onProgress({ 
+          status: 'error', 
+          percentage: 100,
+          message: 'Analysis failed. Please try again.'
+        });
+      }
+
+      if (error instanceof Error) {
+        throw new ContractAnalysisError(
+          error.message,
+          'NETWORK_ERROR',
+          'Unable to connect to the analysis server. Please check your internet connection and try again.'
+        );
+      }
+
+      throw new ContractAnalysisError(
+        'Unknown error occurred',
+        'UNKNOWN_ERROR',
+        'An unexpected error occurred during analysis. Please try again or contact support.'
+      );
+    }
+  }
+
+  // This should never be reached, but TypeScript needs it
+  throw new ContractAnalysisError('Analysis failed after maximum retries', 'MAX_RETRIES_EXCEEDED');
+};
+
+// Original implementation for backward compatibility
+export const handleAnalysisRequestFile = async (
     file: File,
     taxonomy: string = 'standard',
     onProgress: ProgressCallback
