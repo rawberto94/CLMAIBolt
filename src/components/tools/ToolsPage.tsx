@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, BarChart2, ArrowRight, Search, Filter, Settings, FileSearch, Calculator, Beaker } from 'lucide-react';
 
-// Import the existing components
+// Import components
 import ContractAnalyzer from "../contract/ContractAnalyzer";
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
-
-// Import the missing components from the rfp folder
 import RfpManagementSystem from './RfpManagementSystem';
 import RateCardsBenchmarker from './RateCardsBenchmarker';
 import ContractAnalysisDemo from './ContractAnalysisDemo';
+import { AnalysisProvider } from "../../contexts/AnalysisContext";
 
 const ToolsPage: React.FC = () => {
     // --- State Management ---
@@ -22,7 +21,7 @@ const ToolsPage: React.FC = () => {
             name: 'AI Contract Analyzer',
             description: 'Analyze documents using AI to extract key information, risks, and insights.',
             icon: FileText,
-            component: <ContractAnalyzer />,
+            component: <AnalysisProvider><ContractAnalyzer /></AnalysisProvider>,
             features: [
                 'Extract key terms and clauses',
                 'Identify potential risks and obligations',

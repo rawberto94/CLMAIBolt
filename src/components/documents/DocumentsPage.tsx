@@ -3,6 +3,7 @@ import { Plus, Download, Search, Filter, FileText, Upload, BarChart2, Sparkles }
 import DocumentList from './DocumentList';
 import ContractAnalyzer from '../contract/ContractAnalyzer';
 import NewContractModal from './NewContractModal';
+import { AnalysisProvider } from '../../contexts/AnalysisContext';
 import ProjectSelector from '../shared/ProjectSelector';
 import TaxonomyFilter from '../shared/TaxonomyFilter';
 import { useLocation } from '../../contexts/LocationContext';
@@ -110,7 +111,9 @@ const DocumentsPage: React.FC = () => {
       </div>
 
       {activeView === 'analyzer' ? (
-        <ContractAnalyzer />
+        <AnalysisProvider>
+          <ContractAnalyzer />
+        </AnalysisProvider>
       ) : (
         <div className="bg-white rounded-lg shadow-sm">
           <div className="p-4 border-b border-gray-200">
