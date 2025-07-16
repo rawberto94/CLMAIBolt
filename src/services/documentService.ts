@@ -159,6 +159,8 @@ async function extractPDFWithFallback(
     
     // Fallback to Google Document AI
     if (isGoogleDocumentAIConfigured()) {
+      try {
+        const text = await extractTextWithGoogleDocumentAI(file);
         return {
           text,
           method: 'google-document-ai',
