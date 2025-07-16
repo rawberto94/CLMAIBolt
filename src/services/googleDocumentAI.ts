@@ -173,18 +173,10 @@ async function getAccessToken(): Promise<string> {
  * Check if Google Document AI is properly configured
  */
 export function isGoogleDocumentAIConfigured(): boolean {
-  return Boolean(PROJECT_ID && PROCESSOR_ID && (API_KEY));
-}
-
-/**
- * Mock text extraction for when Google Document AI is not configured
- * This provides some basic text rather than failing completely
- */
-async function mockExtractTextFromDocument(file: File): Promise<string> {
-  console.log('[googleDocumentAI] Using mock extraction since Document AI is not configured');
-  
-  return new Promise((resolve) => {
-    // Read a small portion of the file to get filename
+  // Disable Google Document AI to prevent authentication errors
+  // API keys are not supported by this API - requires OAuth2 access tokens
+  console.log('[googleDocumentAI] Google Document AI disabled - requires OAuth2 authentication');
+  return false;
     const reader = new FileReader();
     reader.onload = () => {
       resolve(`Document: ${file.name}
