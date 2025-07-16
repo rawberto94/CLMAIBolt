@@ -177,6 +177,13 @@ export function isGoogleDocumentAIConfigured(): boolean {
   // API keys are not supported by this API - requires OAuth2 access tokens
   console.log('[googleDocumentAI] Google Document AI disabled - requires OAuth2 authentication');
   return false;
+}
+
+/**
+ * Mock function to simulate document text extraction
+ */
+async function mockExtractTextFromDocument(file: File): Promise<string> {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
       resolve(`Document: ${file.name}
