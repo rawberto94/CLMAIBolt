@@ -70,7 +70,19 @@ async function extractWithBestMethod(
   
   // Handle PDF files with multiple strategies
   if (file.type === SUPPORTED_TYPES.PDF) {
-    return await extractPDFWithFallback(file, forceMethod);
+    try {
+      return await extractPDFWithFallback(file, forceMethod);
+    } catch (error) {
+      console.warn('[documentService] PDF extraction failed with all methods, using basic text extraction fallback');
+      // Simple text extraction fallback when all else fails
+      return {
+        text: `Failed to extract detailed text from this PDF. It may be image-based or scanned. 
+        Please try a different file or one with selectable text content.`,
+        method: 'text-reader',
+        confidence: 'low',
+        warnings: ['Document appears to be image-based or scanned']
+      };
+    }
   }
   
   // Handle Word documents
@@ -148,6 +160,7 @@ async function extractPDFWithFallback(
     // Fallback to Google Document AI
     if (isGoogleDocumentAIConfigured()) {
       try {
+        console.log('[documentService] Trying Google Document AI');
         const text = await extractTextWithGoogleDocumentAI(file);
         return {
           text,
@@ -344,4 +357,22 @@ export async function testExtraction(): Promise<{ [method: string]: boolean }> {
   results['pdfjs'] = true; // PDF.js should always work
   
   return results;
+}
+
+/**
+ * Check if Google Document AI is properly configured
+ */
+export function isGoogleDocumentAIConfigured(): boolean {
+  try {
+    const hasConfig = Boolean(
+      import.meta.env.VITE_GOOGLE_PROJECT_ID && 
+      import.meta.env.VITE_GOOGLE_DOCUMENT_AI_PROCESSOR_ID && 
+      import.meta.env.VITE_GOOGLE_DOCUMENT_AI_API_KEY
+    );
+    console.log('[documentService] Google Document AI configuration status:', hasConfig);
+    return hasConfig;
+  } catch (e) {
+    console.warn('[documentService] Error checking Google Document AI configuration:', e);
+    return false;
+  }
 }

@@ -2,10 +2,11 @@
 import { GoogleAuth } from 'google-auth-library';
 
 // Configuration - add these to your .env file
-const PROJECT_ID = import.meta.env.VITE_GOOGLE_PROJECT_ID;
+// Read environment variables with fallbacks
+const PROJECT_ID = import.meta.env.VITE_GOOGLE_PROJECT_ID || '';
 const LOCATION = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_LOCATION || 'us'; // us, eu, asia
-const PROCESSOR_ID = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_PROCESSOR_ID;
-const API_KEY = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_API_KEY;
+const PROCESSOR_ID = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_PROCESSOR_ID || '';
+const API_KEY = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_API_KEY || '';
 
 // Document AI endpoint
 const DOCUMENT_AI_ENDPOINT = `https://${LOCATION}-documentai.googleapis.com`;
@@ -40,6 +41,11 @@ interface DocumentAIResponse {
  */
 export async function extractTextWithGoogleDocumentAI(file: File): Promise<string> {
   try {
+    // Check if Document AI is configured
+    if (!isGoogleDocumentAIConfigured()) {
+      return mockExtractTextFromDocument(file);
+    }
+    
     console.log('[googleDocumentAI] Starting Document AI extraction...');
     
     // Validate configuration
@@ -168,6 +174,36 @@ async function getAccessToken(): Promise<string> {
  */
 export function isGoogleDocumentAIConfigured(): boolean {
   return Boolean(PROJECT_ID && PROCESSOR_ID && (API_KEY));
+}
+
+/**
+ * Mock text extraction for when Google Document AI is not configured
+ * This provides some basic text rather than failing completely
+ */
+async function mockExtractTextFromDocument(file: File): Promise<string> {
+  console.log('[googleDocumentAI] Using mock extraction since Document AI is not configured');
+  
+  return new Promise((resolve) => {
+    // Read a small portion of the file to get filename
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(`Document: ${file.name}
+      
+This is placeholder text because Google Document AI is not configured. 
+The actual document could not be processed using standard methods, suggesting it might be:
+
+1. A scanned document (image-based PDF)
+2. A PDF with security restrictions
+3. A PDF with complex layout that requires OCR
+
+To analyze this document properly, please:
+- Configure Google Document AI credentials in your environment variables
+- Try a different document format with selectable text
+- Convert scanned documents to text using an OCR tool first`);
+    };
+    
+    reader.readAsArrayBuffer(file.slice(0, 100)); // Just read the beginning to get metadata
+  });
 }
 
 /**
