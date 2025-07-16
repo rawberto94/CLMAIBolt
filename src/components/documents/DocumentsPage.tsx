@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Download, Search, Filter, FileText, Upload, BarChart2, Sparkles } from 'lucide-react';
 import DocumentList from './DocumentList';
-import ContractAnalyzer from './ContractAnalyzer';
+import ContractAnalyzer from '../contract/ContractAnalyzer';
 import NewContractModal from './NewContractModal';
 import ProjectSelector from '../shared/ProjectSelector';
 import TaxonomyFilter from '../shared/TaxonomyFilter';

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { handleAnalysisRequest } from '../services/aiService';
+import { handleAnalysisRequest } from '../../services/aiService';
 import { 
   FileText, Upload, Zap, CheckCircle, X, RefreshCw, AlertTriangle, Download,
   DollarSign, Calendar, Shield, AlertCircle, BarChart2, ChevronDown, ChevronUp,
