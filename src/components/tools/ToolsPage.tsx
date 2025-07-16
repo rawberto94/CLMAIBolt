@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, BarChart2, ArrowRight, Search, Filter, Settings, FileSearch, Calculator, Beaker } from 'lucide-react';
 
 // Import the existing components
-import ContractAnalyzer from '../documents/ContractAnalyzer';
+import ContractAnalyzer from '../documents/SimpleContractAnalyzer';
 import ProjectEvaluation from '../evaluation/ProjectEvaluation';
 
 // Import the missing components from the rfp folder
