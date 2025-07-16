@@ -170,8 +170,6 @@ async function extractPDFWithFallback(
       } catch (googleError) {
         throw new Error(`Both PDF.js and Google Document AI failed. PDF.js: ${pdfJsError instanceof Error ? pdfJsError.message : 'Unknown error'}. Google: ${googleError instanceof Error ? googleError.message : 'Unknown error'}`);
       }
-    }
-      }
     } else {
       throw new Error(`PDF.js failed and Google Document AI is not configured: ${pdfJsError instanceof Error ? pdfJsError.message : 'Unknown error'}`);
     }
