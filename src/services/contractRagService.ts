@@ -6,8 +6,9 @@ type ContractText = string;
 
 // Configuration
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/api';
-const ANALYZE_ENDPOINT = `${BACKEND_API_URL}/analyze`;
-const HEALTH_ENDPOINT = `${BACKEND_API_URL}/health`;
+// Fix endpoints to include /api prefix only if not already in BACKEND_API_URL
+const ANALYZE_ENDPOINT = `${BACKEND_API_URL.endsWith('/api') ? BACKEND_API_URL : `${BACKEND_API_URL}/api`}/analyze`;
+const HEALTH_ENDPOINT = `${BACKEND_API_URL.endsWith('/api') ? BACKEND_API_URL.replace('/api', '') : BACKEND_API_URL.replace('/api', '')}/health`;
 
 // Timeout configurations
 const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds

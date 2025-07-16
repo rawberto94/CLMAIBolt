@@ -6,20 +6,17 @@ const multer = require('multer');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const pino = require('pino');
-const { GoogleGenerativeAI } = require('@google/genai');
-require('dotenv').config();
-
-// Debug .env and startup
-console.log('Loaded .env. GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'present' : 'missing');
-console.log('Full env vars:', process.env);  // Temporary, to see all vars
-
-const logger = pino({
+const logger = require('pino')({
   transport: {
     target: 'pino-pretty',
     options: { colorize: true, translateTime: 'SYS:yyyy-mm-dd HH:MM:ss', ignore: 'pid,hostname' },
   },
 });
+const { GoogleGenerativeAI } = require('@google/genai');
+require('dotenv').config();
+
+// Debug .env and startup
+console.log('Loaded .env. GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'present' : 'missing');
 
 const config = {
   port: process.env.PORT || 4000,
@@ -27,8 +24,7 @@ const config = {
 };
 
 const app = express();
-// Configure multer for file uploads
-const multer = require('multer');
+
 // Configure multer for file uploads
 const upload = multer({ 
   limits: { 
@@ -42,11 +38,6 @@ const upload = multer({
       cb(new Error('Only PDF files are allowed'), false);
     }
   }
-});
-
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 app.use(helmet());
@@ -63,7 +54,7 @@ app.use('/api', rateLimit({
 app.use(express.json());
 
 // Test route - no AI needed
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

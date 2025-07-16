@@ -6,7 +6,7 @@ import { GoogleAuth } from 'google-auth-library';
 const PROJECT_ID = import.meta.env.VITE_GOOGLE_PROJECT_ID || '';
 const LOCATION = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_LOCATION || 'us'; // us, eu, asia
 const PROCESSOR_ID = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_PROCESSOR_ID || '';
-const API_KEY = import.meta.env.VITE_GOOGLE_DOCUMENT_AI_API_KEY || '';
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
 
 // Document AI endpoint
 const DOCUMENT_AI_ENDPOINT = `https://${LOCATION}-documentai.googleapis.com`;
@@ -71,15 +71,21 @@ export async function extractTextWithGoogleDocumentAI(file: File): Promise<strin
     const url = `${DOCUMENT_AI_ENDPOINT}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/processors/${PROCESSOR_ID}:process`;
     
     console.log('[googleDocumentAI] Sending request to Document AI...');
-    
+
+    // Headers with API key authentication
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add API key if available
+    if (API_KEY) {
+      headers['X-Goog-Api-Key'] = API_KEY;
+    }
+
     // Make the API request
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${await getAccessToken()}`,
-        ...(API_KEY && { 'X-Goog-Api-Key': API_KEY })
-      },
+      headers,
       body: JSON.stringify(requestBody)
     });
     
@@ -153,30 +159,29 @@ async function fileToBase64(file: File): Promise<string> {
 
 /**
  * Get access token for Google API
- * In a real app, you'd handle this more securely
  */
 async function getAccessToken(): Promise<string> {
-  // For client-side apps, you'll need to handle authentication differently
-  // This is a simplified version - in production, you'd use proper OAuth flow
-  
+  // Since we're using API keys, we don't need this function anymore
+  // But we keep it for compatibility with any existing code
   if (API_KEY) {
     // If using API key, return empty string (key is in header)
     return '';
   }
-  
-  // For service account authentication (backend only)
-  // You would implement OAuth flow here for client-side apps
-  throw new Error('Authentication not implemented for client-side Google Document AI. Please use API key or implement OAuth flow.');
+  return '';
 }
 
 /**
  * Check if Google Document AI is properly configured
  */
 export function isGoogleDocumentAIConfigured(): boolean {
-  // Disable Google Document AI to prevent authentication errors
-  // API keys are not supported by this API - requires OAuth2 access tokens
-  console.log('[googleDocumentAI] Google Document AI disabled - requires OAuth2 authentication');
-  return false;
+  const hasConfig = Boolean(
+    PROJECT_ID && 
+    PROCESSOR_ID && 
+    API_KEY
+  );
+  
+  console.log('[googleDocumentAI] Google Document AI configuration status:', hasConfig);
+  return hasConfig;
 }
 
 /**
@@ -186,7 +191,7 @@ async function mockExtractTextFromDocument(file: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      resolve(`Document: ${file.name}
+      resolve(`Document: ${file.name || 'unnamed'}
       
 This is placeholder text because Google Document AI is not configured. 
 The actual document could not be processed using standard methods, suggesting it might be:
