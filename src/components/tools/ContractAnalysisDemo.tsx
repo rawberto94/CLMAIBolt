@@ -294,11 +294,20 @@ const ContractAnalysisDemo: React.FC = () => {
   const handleLoadSampleContract = async () => {
     setFile(new File(["Sample Contract Content"], "Sample_MSA_2025.pdf", { type: "application/pdf" }));
     setUploadProgress(100);
-    
+
     // Automatically trigger analysis after a short delay
     setTimeout(() => {
       handleAnalyze();
     }, 500);
+  };
+
+  const handleReset = () => {
+    setFile(null);
+    setIsAnalyzing(false);
+    setAnalysisComplete(false);
+    setUploadError(null);
+    setUploadProgress(0);
+    setAnalysisResult(null);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -490,12 +499,15 @@ const ContractAnalysisDemo: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900">{file.name}</h3>
               <p className="text-sm text-gray-500">{file.type || 'application/pdf'} • {(file.size / 1024 / 1024).toFixed(2)} MB</p>
               {uploadProgress < 100 ? (
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                  <div 
-                    className="bg-primary-600 h-2.5 rounded-full transition-all duration-300" 
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
+                <>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div
+                      className="bg-gradient-to-r from-primary-500 to-green-500 h-2.5 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Uploading... {uploadProgress}%</p>
+                </>
               ) : (
                 <div className="flex items-center mt-2 text-green-600 text-sm">
                   <CheckCircle className="h-4 w-4 mr-1" />
@@ -548,13 +560,22 @@ const ContractAnalysisDemo: React.FC = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Analysis Results</h3>
-                <button
-                  onClick={handleExportAnalysis}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Analysis
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleReset}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    New Analysis
+                  </button>
+                  <button
+                    onClick={handleExportAnalysis}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Analysis
+                  </button>
+                </div>
               </div>
 
               {/* Overview Section */}
