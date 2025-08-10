@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, FileText, Shield, Users, Settings, ChevronDown, ChevronUp, MessageSquare, Building2, Plus, X, BarChart2 } from 'lucide-react';
+import { Home, FileText, Shield, Settings, ChevronDown, ChevronUp, MessageSquare, Building2, Plus, X, BarChart2 } from 'lucide-react';
 import { useLocation } from '../../contexts/LocationContext';
 
 interface ChatModalProps {
@@ -154,7 +154,10 @@ const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedMenus, setExpandedMenus] = React.useState<Record<string, boolean>>({
     documents: false,
+    suppliers: false,
     compliance: false,
+    collaboration: false,
+    tools: false,
   });
 
   const [showChatModal, setShowChatModal] = useState(false);
@@ -342,52 +345,15 @@ const Sidebar: React.FC = () => {
                 </ul>
               </NavItem>
 
-              // This is the updated Tools navigation section for Sidebar.tsx
-// Replace the existing Tools NavItem section with this:
-
-<NavItem 
-  icon={<BarChart2 size={20} />}
-  label="Tools"
-  href="#tools"
-  isCollapsed={isCollapsed}
-  active={currentLocation === 'tools'}
-  hasSubmenu={true}
-  isExpanded={expandedMenus.tools}
-  toggleExpand={() => toggleMenu('tools')}
->
-  <ul>
-    <NavItem
-      icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-      label="Contract Analyzer"
-      href="#tools/analyzer"
-      active={currentLocation === 'tools/analyzer'}
-    />
-    <NavItem
-      icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-      label="Project Evaluation"
-      href="#tools/evaluation"
-      active={currentLocation === 'tools/evaluation'}
-    />
-    <NavItem
-      icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-      label="RFP System"
-      href="#tools/rfp-system"
-      active={currentLocation === 'tools/rfp-system'}
-    />
-    <NavItem
-      icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-      label="Rate Cards"
-      href="#tools/rate-cards"
-      active={currentLocation === 'tools/rate-cards'}
-    />
-    <NavItem
-      icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
-      label="Contract Demo"
-      href="#tools/contract-demo"
-      active={currentLocation === 'tools/contract-demo'}
-    />
-  </ul>
-</NavItem>
+              <NavItem
+                icon={<BarChart2 size={20} />}
+                label="Tools"
+                href="#tools"
+                isCollapsed={isCollapsed}
+                active={currentLocation === 'tools'}
+                hasSubmenu={true}
+                isExpanded={expandedMenus.tools}
+                toggleExpand={() => toggleMenu('tools')}
               >
                 <ul>
                   <NavItem
@@ -401,6 +367,24 @@ const Sidebar: React.FC = () => {
                     label="Project Evaluation"
                     href="#tools/evaluation"
                     active={currentLocation === 'tools/evaluation'}
+                  />
+                  <NavItem
+                    icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
+                    label="RFP System"
+                    href="#tools/rfp-system"
+                    active={currentLocation === 'tools/rfp-system'}
+                  />
+                  <NavItem
+                    icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
+                    label="Rate Cards"
+                    href="#tools/rate-cards"
+                    active={currentLocation === 'tools/rate-cards'}
+                  />
+                  <NavItem
+                    icon={<span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />}
+                    label="Contract Demo"
+                    href="#tools/contract-demo"
+                    active={currentLocation === 'tools/contract-demo'}
                   />
                 </ul>
               </NavItem>
