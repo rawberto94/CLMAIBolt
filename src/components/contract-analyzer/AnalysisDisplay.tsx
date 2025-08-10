@@ -26,8 +26,8 @@ export const AnalysisDisplay = () => {
 
 
     return (
-        <div className="space-y-6">
-            <header className="pb-4 border-b">
+        <div className="space-y-6 h-full overflow-y-auto">
+            <header className="pb-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500">Analysis Result</p>
                 <h2 className="text-2xl font-bold text-gray-800">{currentAnalysis.fileName}</h2>
             </header>
