@@ -52,9 +52,9 @@ export const FileUpload = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto">
-            <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 cursor-pointer hover:border-blue-500 transition-all"
+        <div className="flex flex-col h-full">
+            <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 cursor-pointer hover:border-blue-500/80 hover:bg-white/40 transition-all"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
@@ -94,11 +94,11 @@ export const FileUpload = () => {
                 <option value="Employment Contract">Employment Contract</option>
             </select>
             
-            <div className="text-center">
-                <button 
-                    onClick={analyze} 
-                    disabled={!file || !selectedTaxonomy || isAnalyzing} 
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 rounded-md font-medium transition-all bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            <div className="text-center mt-auto">
+                <button
+                    onClick={analyze}
+                    disabled={!file || !selectedTaxonomy || isAnalyzing}
+                    className="flex items-center justify-center gap-2 w-full px-8 py-3 rounded-md font-medium transition-all bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                     {isAnalyzing ? (
                         <>
